@@ -87,9 +87,9 @@ export default function Dashboard({ api }) {
 
   return (
     <div className="page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="dashboard-toolbar">
         <div>
-          <h1 style={{ margin: 0, fontSize: '1.4rem' }}>لوحة التحكم</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(1.15rem, 4vw, 1.4rem)' }}>لوحة التحكم</h1>
           <p style={{ margin: 0, marginTop: '0.25rem', color: '#6b7280', fontSize: '0.85rem' }}>
             نظرة عامة على أداء المطعم — الفترة: <strong>{periodLabel}</strong>
           </p>
@@ -100,6 +100,7 @@ export default function Dashboard({ api }) {
             placeholder="بحث برقم الطلب أو معرف العميل أو ملاحظة الزبون…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="dashboard-search-input"
             style={{
               minWidth: 260,
               maxWidth: 420,
@@ -165,7 +166,7 @@ export default function Dashboard({ api }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+      <div className="dashboard-split">
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>ملخص الإيرادات</span>
@@ -217,22 +218,24 @@ export default function Dashboard({ api }) {
               {q ? `مفلتر حسب البحث (عرض ${filteredTopProducts.length})` : 'ضمن الفترة المختارة'}
             </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>المنتج</th>
-                <th>الكمية</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTopProducts.map((p, i) => (
-                <tr key={i}>
-                  <td>{p.name}</td>
-                  <td>{p.total}</td>
+          <div className="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>المنتج</th>
+                  <th>الكمية</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredTopProducts.map((p, i) => (
+                  <tr key={i}>
+                    <td>{p.name}</td>
+                    <td>{p.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {filteredTopProducts.length === 0 && (
             <p style={{ marginTop: '0.75rem', color: '#6b7280' }}>لا توجد نتائج.</p>
           )}
@@ -261,52 +264,54 @@ export default function Dashboard({ api }) {
             {q ? `نتائج البحث (${filteredRecentOrders.length})` : 'آخر الطلبات (حتى 150)'}
           </span>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>رقم الطلب</th>
-              <th>المصدر</th>
-              <th>النوع</th>
-              <th>الطاولة</th>
-              <th>الاسم</th>
-              <th>الهاتف</th>
-              <th>العنوان</th>
-              <th>ملاحظة</th>
-              <th>الإجمالي التقريبي</th>
-              <th>الحالة</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredRecentOrders.map((o) => {
-              const total = (o.items || []).reduce(
-                (sum, it) => sum + (it.price || 0) * (it.quantity || 0),
-                0
-              );
-              return (
-                <tr key={o.id}>
-                  <td>#{o.id}</td>
-                  <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                    {o.order_source === 'web' ? (
-                      <span style={{ color: '#059669', fontWeight: 600 }}>ويب</span>
-                    ) : (
-                      <span style={{ color: '#6b7280' }}>تيليجرام</span>
-                    )}
-                  </td>
-                  <td style={{ ...dashCell, whiteSpace: 'nowrap' }}>{orderTypeLabelAr(o.order_type)}</td>
-                  <td style={dashCell}>{snapshotLine(o.table_number)}</td>
-                  <td style={dashCell}>{snapshotLine(o.customer_name_snapshot)}</td>
-                  <td style={dashCell}>{snapshotLine(o.customer_phone_snapshot)}</td>
-                  <td style={dashCell}>{snapshotLine(o.customer_address_snapshot)}</td>
-                  <td style={dashCell}>{snapshotLine(o.public_order_note)}</td>
-                  <td>${total.toFixed(2)}</td>
-                  <td>
-                    <span className="badge-success">{o.status}</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="table-responsive table-responsive--wide">
+          <table>
+            <thead>
+              <tr>
+                <th>رقم الطلب</th>
+                <th>المصدر</th>
+                <th>النوع</th>
+                <th>الطاولة</th>
+                <th>الاسم</th>
+                <th>الهاتف</th>
+                <th>العنوان</th>
+                <th>ملاحظة</th>
+                <th>الإجمالي التقريبي</th>
+                <th>الحالة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRecentOrders.map((o) => {
+                const total = (o.items || []).reduce(
+                  (sum, it) => sum + (it.price || 0) * (it.quantity || 0),
+                  0
+                );
+                return (
+                  <tr key={o.id}>
+                    <td>#{o.id}</td>
+                    <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                      {o.order_source === 'web' ? (
+                        <span style={{ color: '#059669', fontWeight: 600 }}>ويب</span>
+                      ) : (
+                        <span style={{ color: '#6b7280' }}>تيليجرام</span>
+                      )}
+                    </td>
+                    <td style={{ ...dashCell, whiteSpace: 'nowrap' }}>{orderTypeLabelAr(o.order_type)}</td>
+                    <td style={dashCell}>{snapshotLine(o.table_number)}</td>
+                    <td style={dashCell}>{snapshotLine(o.customer_name_snapshot)}</td>
+                    <td style={dashCell}>{snapshotLine(o.customer_phone_snapshot)}</td>
+                    <td style={dashCell}>{snapshotLine(o.customer_address_snapshot)}</td>
+                    <td style={dashCell}>{snapshotLine(o.public_order_note)}</td>
+                    <td>${total.toFixed(2)}</td>
+                    <td>
+                      <span className="badge-success">{o.status}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         {filteredRecentOrders.length === 0 && (
           <p style={{ marginTop: '0.75rem', color: '#6b7280' }}>لا توجد طلبات مطابقة.</p>
         )}

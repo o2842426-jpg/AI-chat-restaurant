@@ -1,11 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 const MAX_QTY = 5;
 
+function parseQrDineInParams(searchParams) {
+  const mode = (searchParams.get('mode') || '').trim().toLowerCase();
+  const table = (searchParams.get('table') || '').trim();
+  if (mode === 'dine_in' && table) {
+    return { locked: true, table };
+  }
+  return { locked: false, table: '' };
+}
+
 export default function OrderPage({ api = '/api' }) {
   const { restaurantId } = useParams();
+  const [searchParams] = useSearchParams();
   const rid = Number(restaurantId);
+
+  const qrDineIn = useMemo(() => parseQrDineInParams(searchParams), [searchParams]);
 
   const [menuData, setMenuData] = useState(null);
   const [loadError, setLoadError] = useState(null);
@@ -98,8 +110,12 @@ export default function OrderPage({ api = '/api' }) {
       setSubmitError('اختر صنفاً واحداً على الأقل');
       return;
     }
-    if (orderType === 'dine_in') {
-      if (!tableNumber.trim()) {
+
+    const submitOrderType = qrDineIn.locked ? 'dine_in' : orderType;
+    const submitTable = qrDineIn.locked ? qrDineIn.table : tableNumber.trim();
+
+    if (submitOrderType === 'dine_in') {
+      if (!submitTable) {
         setSubmitError('يرجى إدخال رقم الطاولة');
         return;
       }
@@ -114,12 +130,12 @@ export default function OrderPage({ api = '/api' }) {
     try {
       const payload = {
         restaurant_id: rid,
-        order_type: orderType,
+        order_type: submitOrderType,
         items: cartLines.map((l) => ({ menu_item_id: l.id, quantity: l.quantity })),
         note: note.trim() || undefined,
       };
-      if (orderType === 'dine_in') {
-        payload.table_number = tableNumber.trim();
+      if (submitOrderType === 'dine_in') {
+        payload.table_number = submitTable;
       } else {
         payload.customer_name = name.trim();
         payload.customer_phone = phone.trim();
@@ -177,34 +193,45 @@ export default function OrderPage({ api = '/api' }) {
 
       {menuData && !loadError && (
         <form onSubmit={submit}>
-          <section style={card}>
-            <h2 style={h2}>نوع الطلب</h2>
-            <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.9rem' }}>
-              اختر داخل المطعم أو توصيل قبل إكمال الطلب.
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setOrderType('dine_in')}
-                style={orderType === 'dine_in' ? typeBtnActive : typeBtnIdle}
+          {qrDineIn.locked ? (
+            <section style={{ ...card, ...qrTableBanner }}>
+              <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#065f46' }}>
+                الطلب لهذه الطاولة: {qrDineIn.table}
+              </p>
+              <p style={{ margin: '0.5rem 0 0', color: '#047857', fontSize: '0.9rem' }}>
+                طلب داخل المطعم — لا حاجة لإدخال الهاتف أو العنوان.
+              </p>
+            </section>
+          ) : (
+            <section style={card}>
+              <h2 style={h2}>نوع الطلب</h2>
+              <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.9rem' }}>
+                اختر داخل المطعم أو توصيل قبل إكمال الطلب.
+              </p>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
               >
-                🍽️ داخل المطعم
-              </button>
-              <button
-                type="button"
-                onClick={() => setOrderType('delivery')}
-                style={orderType === 'delivery' ? typeBtnActive : typeBtnIdle}
-              >
-                🚚 توصيل
-              </button>
-            </div>
-          </section>
+                <button
+                  type="button"
+                  onClick={() => setOrderType('dine_in')}
+                  style={orderType === 'dine_in' ? typeBtnActive : typeBtnIdle}
+                >
+                  🍽️ داخل المطعم
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderType('delivery')}
+                  style={orderType === 'delivery' ? typeBtnActive : typeBtnIdle}
+                >
+                  🚚 توصيل
+                </button>
+              </div>
+            </section>
+          )}
 
           <section style={card}>
             <h2 style={h2}>المنيو</h2>
@@ -289,7 +316,7 @@ export default function OrderPage({ api = '/api' }) {
 
           <section style={card}>
             <h2 style={h2}>بياناتك</h2>
-            {orderType === 'dine_in' ? (
+            {qrDineIn.locked ? null : orderType === 'dine_in' ? (
               <div style={field}>
                 <label htmlFor="table-num">رقم الطاولة</label>
                 <input
@@ -455,4 +482,9 @@ const typeBtnIdle = {
   background: '#fff',
   color: '#374151',
   borderColor: '#d1d5db',
+};
+
+const qrTableBanner = {
+  background: '#ecfdf5',
+  border: '1px solid #6ee7b7',
 };

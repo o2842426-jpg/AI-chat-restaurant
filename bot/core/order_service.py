@@ -86,7 +86,7 @@ def confirm_draft_order(db: Session, user_id: int, restaurant_id: int) -> Confir
     if eff == ORDER_TYPE_DINE_IN:
         customer_lines = [
             "🍽️ داخل المطعم",
-            f"🍽️ طاولة رقم: {str(order.table_number).strip()}",
+            f"طاولة رقم: {str(order.table_number).strip()}",
             "",
         ]
     else:

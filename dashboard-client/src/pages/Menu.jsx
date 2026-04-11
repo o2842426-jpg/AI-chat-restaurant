@@ -58,7 +58,7 @@ export default function Menu({ api }) {
   return (
     <div className="card">
       <h1>المنيو</h1>
-      <form onSubmit={add} style={{ marginBottom: '1rem' }}>
+      <form onSubmit={add} className="menu-add-form" style={{ marginBottom: '1rem' }}>
         <input
           placeholder="اسم المنتج"
           value={name}
@@ -79,7 +79,8 @@ export default function Menu({ api }) {
         />
         <button type="submit">إضافة منتج</button>
       </form>
-      <table>
+      <div className="table-responsive">
+        <table>
         <thead>
           <tr>
             <th>الاسم</th>
@@ -102,7 +103,8 @@ export default function Menu({ api }) {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }

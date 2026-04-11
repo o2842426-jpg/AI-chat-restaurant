@@ -75,9 +75,10 @@ export default function Orders({ api }) {
         </p>
       )}
 
-      <div style={{ marginBottom: '1rem' }}>
-        <label>فلتر الحالة: </label>
+      <div className="orders-filter-row" style={{ marginBottom: '1rem' }}>
+        <label htmlFor="orders-status-filter">فلتر الحالة: </label>
         <select
+          id="orders-status-filter"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         >
@@ -89,71 +90,73 @@ export default function Orders({ api }) {
         </select>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>المصدر</th>
-            <th>النوع</th>
-            <th>الطاولة</th>
-            <th>التاريخ</th>
-            <th>العناصر</th>
-            <th>الاسم</th>
-            <th>الهاتف</th>
-            <th>العنوان</th>
-            <th>ملاحظة</th>
-            <th>الحالة</th>
-            <th>تغيير</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order.id}>
-              <td>{order.id}</td>
-              <td>
-                {order.order_source === 'web' ? (
-                  <span style={{ color: '#059669', fontWeight: 600 }}>ويب</span>
-                ) : (
-                  <span style={{ color: '#6b7280' }}>تيليجرام</span>
-                )}
-              </td>
-              <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                {orderTypeLabelAr(order.order_type)}
-              </td>
-              <td style={{ fontSize: '0.85rem' }}>{snapshotLine(order.table_number)}</td>
-              <td>{order.created_at?.slice(0, 16)}</td>
-              <td>
-                {order.items
-                  ?.map((i) => `${i.name} x${i.quantity}`)
-                  .join('، ')}
-              </td>
-              <td style={cellWide}>{snapshotLine(order.customer_name_snapshot)}</td>
-              <td style={cellWide}>{snapshotLine(order.customer_phone_snapshot)}</td>
-              <td style={cellWide}>{snapshotLine(order.customer_address_snapshot)}</td>
-              <td style={cellWide}>{snapshotLine(order.public_order_note)}</td>
-              <td>{order.status}</td>
-              <td>
-                <select
-                  value={order.status}
-                  onChange={(e) => updateStatus(order.id, e.target.value)}
-                >
-                  {statusOptions(order.status).map((s) => (
-                    <option key={s} value={s}>
-                      {s === 'confirmed'
-                        ? 'مؤكد'
-                        : s === 'preparing'
-                          ? 'قيد التحضير'
-                          : s === 'ready'
-                            ? 'جاهز'
-                            : 'تم التوصيل'}
-                    </option>
-                  ))}
-                </select>
-              </td>
+      <div className="table-responsive table-responsive--wide">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>المصدر</th>
+              <th>النوع</th>
+              <th>الطاولة</th>
+              <th>التاريخ</th>
+              <th>العناصر</th>
+              <th>الاسم</th>
+              <th>الهاتف</th>
+              <th>العنوان</th>
+              <th>ملاحظة</th>
+              <th>الحالة</th>
+              <th>تغيير</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {orders.map((order) => (
+              <tr key={order.id}>
+                <td>{order.id}</td>
+                <td>
+                  {order.order_source === 'web' ? (
+                    <span style={{ color: '#059669', fontWeight: 600 }}>ويب</span>
+                  ) : (
+                    <span style={{ color: '#6b7280' }}>تيليجرام</span>
+                  )}
+                </td>
+                <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                  {orderTypeLabelAr(order.order_type)}
+                </td>
+                <td style={{ fontSize: '0.85rem' }}>{snapshotLine(order.table_number)}</td>
+                <td>{order.created_at?.slice(0, 16)}</td>
+                <td>
+                  {order.items
+                    ?.map((i) => `${i.name} x${i.quantity}`)
+                    .join('، ')}
+                </td>
+                <td style={cellWide}>{snapshotLine(order.customer_name_snapshot)}</td>
+                <td style={cellWide}>{snapshotLine(order.customer_phone_snapshot)}</td>
+                <td style={cellWide}>{snapshotLine(order.customer_address_snapshot)}</td>
+                <td style={cellWide}>{snapshotLine(order.public_order_note)}</td>
+                <td>{order.status}</td>
+                <td>
+                  <select
+                    value={order.status}
+                    onChange={(e) => updateStatus(order.id, e.target.value)}
+                  >
+                    {statusOptions(order.status).map((s) => (
+                      <option key={s} value={s}>
+                        {s === 'confirmed'
+                          ? 'مؤكد'
+                          : s === 'preparing'
+                            ? 'قيد التحضير'
+                            : s === 'ready'
+                              ? 'جاهز'
+                              : 'تم التوصيل'}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {orders.length === 0 && <p>لا توجد طلبات.</p>}
     </div>

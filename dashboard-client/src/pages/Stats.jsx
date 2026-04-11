@@ -36,8 +36,8 @@ export default function Stats({ api }) {
 
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
-        <h1 style={{ margin: 0 }}>الإحصائيات</h1>
+      <div className="stats-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1rem' }}>
+        <h1 style={{ margin: 0, fontSize: 'clamp(1.15rem, 4vw, 1.5rem)' }}>الإحصائيات</h1>
         <div className="segmented">
           {PERIODS.map(({ key, label }) => (
             <button
@@ -54,7 +54,7 @@ export default function Stats({ api }) {
       <p style={{ color: '#6b7280', fontSize: '0.9rem', marginBottom: '1rem' }}>
         الفترة: <strong>{periodLabel}</strong> — طلبات مؤكدة فقط
       </p>
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className="stats-kpi-row" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
         <div style={{ background: 'white', padding: '1.5rem', borderRadius: 8, minWidth: 180, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <div style={{ color: '#666', fontSize: '0.9rem' }}>طلبات الفترة</div>
           <div style={{ fontSize: '2rem', fontWeight: 'bold' }}>{ordersInPeriod}</div>
@@ -96,22 +96,24 @@ export default function Stats({ api }) {
       </div>
 
       <h2 style={{ marginTop: '1.5rem' }}>أكثر المنتجات طلباً</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>المنتج</th>
-            <th>الكمية</th>
-          </tr>
-        </thead>
-        <tbody>
-          {topProducts.map((p, i) => (
-            <tr key={i}>
-              <td>{p.name}</td>
-              <td>{p.total}</td>
+      <div className="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>المنتج</th>
+              <th>الكمية</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {topProducts.map((p, i) => (
+              <tr key={i}>
+                <td>{p.name}</td>
+                <td>{p.total}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

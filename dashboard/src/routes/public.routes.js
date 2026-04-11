@@ -44,7 +44,7 @@ function buildKitchenText({
   const header = [`Order #${orderId}`];
   let metaLines;
   if (orderType === "dine_in") {
-    metaLines = ["🍽️ داخل المطعم", `🍽️ طاولة رقم: ${tableNumber || "?"}`, ""];
+    metaLines = ["🍽️ داخل المطعم", `طاولة رقم: ${tableNumber || "?"}`, ""];
   } else {
     metaLines = [
       "🚚 توصيل",

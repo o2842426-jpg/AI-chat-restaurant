@@ -188,6 +188,7 @@ export default function Admin({ api }) {
         }}
       >
         <h2 style={{ marginBottom: '1rem', fontSize: '1rem' }}>قائمة المطاعم</h2>
+        <div className="table-responsive table-responsive--wide">
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#f3f4f6', textAlign: 'right' }}>
@@ -234,6 +235,7 @@ export default function Admin({ api }) {
             ))}
           </tbody>
         </table>
+        </div>
         {restaurants.length === 0 && (
           <p style={{ marginTop: '0.75rem', color: '#6b7280' }}>لا توجد مطاعم بعد.</p>
         )}
