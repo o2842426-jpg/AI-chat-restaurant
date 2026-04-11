@@ -3,6 +3,14 @@ import QRCode from 'qrcode';
 import { getAuthRole, getRestaurantId } from '../lib/authToken';
 import { buildDineInTableOrderUrl } from '../lib/tableQrOrderUrl';
 
+/**
+ * Host encoded inside every QR (customers open this on their phones).
+ * Override at build time: VITE_QR_PUBLIC_ORIGIN=https://your-domain.com
+ */
+const QR_PUBLIC_ORIGIN = String(
+  import.meta.env.VITE_QR_PUBLIC_ORIGIN || 'http://5.189.181.113'
+).replace(/\/$/, '');
+
 function QrTile({ fullUrl, tableNum, onCopy, copied }) {
   const [dataUrl, setDataUrl] = useState('');
   const [qrError, setQrError] = useState('');
@@ -118,8 +126,6 @@ export default function TableQrPage() {
     return Array.from({ length: count }, (_, i) => start + i);
   }, [startTable, tableCount]);
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
-
   const onCopy = async (url, tableNum) => {
     try {
       await navigator.clipboard.writeText(url);
@@ -134,9 +140,25 @@ export default function TableQrPage() {
     <div className="page">
       <div className="card">
         <h1 style={{ margin: '0 0 0.5rem', fontSize: 'clamp(1.15rem, 4vw, 1.35rem)' }}>اختبار QR للطاولات</h1>
-        <p style={{ margin: '0 0 1rem', color: '#6b7280', fontSize: '0.9rem', lineHeight: 1.6 }}>
+        <p style={{ margin: '0 0 0.65rem', color: '#6b7280', fontSize: '0.9rem', lineHeight: 1.6 }}>
           يُنشئ روابط الصفحة العامة <code style={{ background: '#f3f4f6', padding: '0.1rem 0.35rem', borderRadius: 4 }}>/order/…?mode=dine_in&amp;table=…</code> مع رمز QR لكل طاولة.
           افتح الرابط من الجوال أو امسح الرمز للتأكد أن الطلب يُسجَّل للطاولة الصحيحة.
+        </p>
+        <p
+          style={{
+            margin: '0 0 1rem',
+            padding: '0.55rem 0.75rem',
+            background: '#eff6ff',
+            borderRadius: 8,
+            fontSize: '0.82rem',
+            color: '#1e3a5f',
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>عنوان الروابط والـ QR:</strong> <code style={{ background: '#fff', padding: '0.08rem 0.3rem', borderRadius: 4 }}>{QR_PUBLIC_ORIGIN}</code>
+          {import.meta.env.VITE_QR_PUBLIC_ORIGIN ? (
+            <span style={{ display: 'block', marginTop: '0.35rem', color: '#4b5563' }}>(من VITE_QR_PUBLIC_ORIGIN)</span>
+          ) : null}
         </p>
 
         {isAdmin && jwtRid == null && (
@@ -215,7 +237,7 @@ export default function TableQrPage() {
             }}
           >
             {tableNumbers.map((t) => {
-              const fullUrl = buildDineInTableOrderUrl(origin, effectiveRid, t);
+              const fullUrl = buildDineInTableOrderUrl(QR_PUBLIC_ORIGIN, effectiveRid, t);
               return <QrTile key={t} fullUrl={fullUrl} tableNum={t} onCopy={onCopy} copied={copiedKey === t} />;
             })}
           </div>
