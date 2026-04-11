@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authFetch } from '../api';
 import { getRestaurantId } from '../lib/authToken';
-import { snapshotLine } from '../lib/orderSnapshots';
+import { orderTypeLabelAr, snapshotLine } from '../lib/orderSnapshots';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
 
@@ -94,6 +94,8 @@ export default function Orders({ api }) {
           <tr>
             <th>#</th>
             <th>المصدر</th>
+            <th>النوع</th>
+            <th>الطاولة</th>
             <th>التاريخ</th>
             <th>العناصر</th>
             <th>الاسم</th>
@@ -115,6 +117,10 @@ export default function Orders({ api }) {
                   <span style={{ color: '#6b7280' }}>تيليجرام</span>
                 )}
               </td>
+              <td style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                {orderTypeLabelAr(order.order_type)}
+              </td>
+              <td style={{ fontSize: '0.85rem' }}>{snapshotLine(order.table_number)}</td>
               <td>{order.created_at?.slice(0, 16)}</td>
               <td>
                 {order.items

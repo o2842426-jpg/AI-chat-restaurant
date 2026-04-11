@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { authFetch } from '../api';
 import { getRestaurantId } from '../lib/authToken';
-import { snapshotLine } from '../lib/orderSnapshots';
+import { orderTypeLabelAr, snapshotLine } from '../lib/orderSnapshots';
 import { PERIODS } from '../constants/periods';
 import LoadingState from '../components/ui/LoadingState';
 import ErrorState from '../components/ui/ErrorState';
@@ -54,13 +54,17 @@ export default function Dashboard({ api }) {
       const name = String(o.customer_name_snapshot ?? '').toLowerCase();
       const phone = String(o.customer_phone_snapshot ?? '').toLowerCase();
       const addr = String(o.customer_address_snapshot ?? '').toLowerCase();
+      const tbl = String(o.table_number ?? '').toLowerCase();
+      const otype = String(o.order_type ?? '').toLowerCase();
       return (
         idStr.includes(q) ||
         uid.includes(q) ||
         note.includes(q) ||
         name.includes(q) ||
         phone.includes(q) ||
-        addr.includes(q)
+        addr.includes(q) ||
+        tbl.includes(q) ||
+        otype.includes(q)
       );
     }).slice(0, 20);
   }, [recentOrders, q]);
@@ -262,6 +266,8 @@ export default function Dashboard({ api }) {
             <tr>
               <th>رقم الطلب</th>
               <th>المصدر</th>
+              <th>النوع</th>
+              <th>الطاولة</th>
               <th>الاسم</th>
               <th>الهاتف</th>
               <th>العنوان</th>
@@ -286,6 +292,8 @@ export default function Dashboard({ api }) {
                       <span style={{ color: '#6b7280' }}>تيليجرام</span>
                     )}
                   </td>
+                  <td style={{ ...dashCell, whiteSpace: 'nowrap' }}>{orderTypeLabelAr(o.order_type)}</td>
+                  <td style={dashCell}>{snapshotLine(o.table_number)}</td>
                   <td style={dashCell}>{snapshotLine(o.customer_name_snapshot)}</td>
                   <td style={dashCell}>{snapshotLine(o.customer_phone_snapshot)}</td>
                   <td style={dashCell}>{snapshotLine(o.customer_address_snapshot)}</td>

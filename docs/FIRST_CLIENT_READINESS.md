@@ -30,7 +30,8 @@ Use this as your **master checklist** before you put a paying restaurant live.
 |------|-----|
 | **VPS or cloud server** (Linux or Windows) with stable internet | Host API + static files + bot + DB |
 | **HTTPS + domain** | Browsers and QR links expect `https://yourdomain.com` |
-| **Reverse proxy** (e.g. nginx or Caddy) | Terminate TLS, proxy `/api` → Node `3000`, serve static `dist/` |
+| **Reverse proxy** (e.g. nginx or Caddy) | Terminate TLS, proxy `/api` → Node `3000`, serve static `dist/` — see `docs/nginx-api.example.conf` |
+| **Nginx `proxy_pass`** | Must **keep** the `/api` prefix on upstream (wrong strip → `401 unauthorized` on `/api/public/...` and broken login). Example: `location /api/ { proxy_pass http://127.0.0.1:3000/api/; }` |
 | **Strong secrets** | Change default `JWT_SECRET`, `ADMIN_PASSWORD` — never use repo defaults |
 | **Same SQLite file** | Bot + API must point at the **same** `restaurant_bot.db` path on the server |
 | **Firewall** | Open 80/443 only; Node listens on localhost behind proxy |

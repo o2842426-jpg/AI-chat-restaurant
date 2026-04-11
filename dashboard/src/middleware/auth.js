@@ -8,8 +8,19 @@ function readBearerToken(req) {
   return authHeader.split(" ")[1] || null;
 }
 
+function isHealthCheckPath(req) {
+  if (req.method !== "GET") return false;
+  const pathname = (req.originalUrl || req.url || req.path || "").split("?")[0].replace(/\/+$/, "") || "/";
+  return pathname === "/api/health" || pathname === "/health";
+}
+
 function authMiddleware(jwtSecret, db) {
   return function restaurantAuth(req, res, next) {
+    if (isHealthCheckPath(req)) {
+      res.set("Cache-Control", "no-store");
+      return res.json({ ok: true, service: "restaurant-dashboard-api" });
+    }
+
     try {
       const token = readBearerToken(req);
       if (!token) {

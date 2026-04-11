@@ -87,6 +87,9 @@ class Order(Base):
     customer_input_step = Column(String, nullable=True)
     # Optional note from public web/QR ordering (additive column).
     public_order_note = Column(String, nullable=True)
+    # dine_in | delivery; NULL = legacy (treated as delivery for validation).
+    order_type = Column(String, nullable=True)
+    table_number = Column(String, nullable=True)
 
     items = relationship("OrderItem", back_populates="order")
 
@@ -244,6 +247,8 @@ def init_db():
             ("customer_address_snapshot", "ALTER TABLE orders ADD COLUMN customer_address_snapshot VARCHAR"),
             ("customer_input_step", "ALTER TABLE orders ADD COLUMN customer_input_step VARCHAR"),
             ("public_order_note", "ALTER TABLE orders ADD COLUMN public_order_note VARCHAR"),
+            ("order_type", "ALTER TABLE orders ADD COLUMN order_type VARCHAR"),
+            ("table_number", "ALTER TABLE orders ADD COLUMN table_number VARCHAR"),
         ):
             if col not in ord_cols:
                 conn.execute(text(ddl))

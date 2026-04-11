@@ -27,6 +27,7 @@ from core.customer_service import (
     apply_customer_text_for_input,
     reset_customer_for_edit,
     get_customer_input_step,
+    set_draft_order_type,
 )
 
 from .keyboards import (
@@ -35,6 +36,7 @@ from .keyboards import (
     customer_review_keyboard,
     main_menu_keyboard,
     menu_items_keyboard,
+    order_type_keyboard,
     upsell_keyboard,
 )
 from .messaging import edit_or_send_followup
@@ -63,8 +65,10 @@ async def new_order_flow(message: Message) -> None:
     finally:
         db.close()
 
-    await message.answer("لنبدأ طلباً جديداً. اختر الفئة:", reply_markup=None)
-    await message.answer("اختر الفئة:", reply_markup=categories_keyboard())
+    await message.answer(
+        "نوع الطلب؟",
+        reply_markup=order_type_keyboard(),
+    )
 
 
 async def show_categories(message_or_callback) -> None:
@@ -137,28 +141,38 @@ async def text_handler(message: Message, bot: Bot) -> None:
     try:
         user = ensure_user(db, message.from_user)
         step = get_customer_input_step(db, user.id, BOT_RESTAURANT_ID)
-        if step in ("name", "phone", "address"):
+        if step in ("name", "phone", "address", "table_number"):
             action, payload = apply_customer_text_for_input(
                 db, user.id, BOT_RESTAURANT_ID, text
             )
             if action == "need_input":
                 next_field = payload.get("field") or step
                 label = payload.get("label") or next_field
-                if next_field == "phone":
+                hint = payload.get("hint")
+                if next_field == "table_number":
+                    await message.answer(hint or "الرجاء إدخال رقم الطاولة:")
+                elif next_field == "phone":
                     await message.answer("تم ✅ الآن أدخل رقم الهاتف:")
                 elif next_field == "address":
                     await message.answer(f"تم ✅ الآن أدخل {label}:")
                 else:
                     await message.answer(f"الرجاء أدخل {label}:")
             elif action == "review":
-                customer = payload["customer"]
-                await message.answer(
-                    "يرجى تأكيد بيانات العميل:\n"
-                    f"الاسم: {customer['name']}\n"
-                    f"الهاتف: {customer['phone']}\n"
-                    f"العنوان: {customer['address']}",
-                    reply_markup=customer_review_keyboard(),
-                )
+                if payload.get("mode") == "dine_in":
+                    await message.answer(
+                        "يرجى تأكيد بيانات الطاولة:\n"
+                        f"🍽️ طاولة رقم: {payload.get('table_number', '')}",
+                        reply_markup=customer_review_keyboard(),
+                    )
+                else:
+                    customer = payload["customer"]
+                    await message.answer(
+                        "يرجى تأكيد بيانات العميل:\n"
+                        f"الاسم: {customer['name']}\n"
+                        f"الهاتف: {customer['phone']}\n"
+                        f"العنوان: {customer['address']}",
+                        reply_markup=customer_review_keyboard(),
+                    )
             else:
                 await message.answer("يرجى المحاولة مرة أخرى.")
             return
@@ -360,6 +374,24 @@ async def callback_handler(callback: CallbackQuery, bot: Bot) -> None:
             fake_message.from_user = callback.from_user
             await show_cart(fake_message)
 
+        elif data.startswith("order_type:"):
+            kind = data.split(":", 1)[1]
+            if kind not in ("dine_in", "delivery"):
+                await callback.answer("خيار غير صالح.", show_alert=True)
+                return
+            db: Session = SessionLocal()
+            try:
+                user = ensure_user(db, callback.from_user)
+                set_draft_order_type(db, user.id, BOT_RESTAURANT_ID, kind)
+            finally:
+                db.close()
+            await callback.answer("تم الاختيار ✅", show_alert=False)
+            await edit_or_send_followup(
+                callback,
+                "لنبدأ طلباً جديداً. اختر الفئة:",
+                reply_markup=categories_keyboard(),
+            )
+
         elif data == "confirm_order":
             await confirm_order(callback, bot)
         elif data == "customer_confirm_yes":
@@ -392,9 +424,25 @@ async def confirm_order(callback: CallbackQuery, bot: Bot) -> None:
         await callback.answer("لا يوجد طلب للتأكيد.", show_alert=True)
         return
 
+    if action == "need_order_type":
+        await callback.answer()
+        msg = "نوع الطلب؟"
+        if callback.message is not None:
+            await callback.message.answer(msg, reply_markup=order_type_keyboard())
+        else:
+            await bot.send_message(callback.from_user.id, msg, reply_markup=order_type_keyboard())
+        return
+
     if action == "need_input":
         field = payload.get("field")
-        if field == "name":
+        if field == "table_number":
+            await callback.answer("تم ✅ الآن أدخل رقم الطاولة", show_alert=False)
+            text = "تم ✅ الآن أدخل رقم الطاولة:"
+            if callback.message is not None:
+                await callback.message.answer(text)
+            else:
+                await bot.send_message(callback.from_user.id, text)
+        elif field == "name":
             await callback.answer("تم ✅ الآن أدخل اسم العميل", show_alert=False)
             if callback.message is not None:
                 await callback.message.answer("تم ✅ الآن أدخل اسم العميل:")
@@ -418,13 +466,19 @@ async def confirm_order(callback: CallbackQuery, bot: Bot) -> None:
         return
 
     if action == "review":
-        customer = payload["customer"]
-        review_text = (
-            "يرجى تأكيد بيانات العميل:\n"
-            f"الاسم: {customer['name']}\n"
-            f"الهاتف: {customer['phone']}\n"
-            f"العنوان: {customer['address']}"
-        )
+        if payload.get("mode") == "dine_in":
+            review_text = (
+                "يرجى تأكيد بيانات الطاولة:\n"
+                f"🍽️ طاولة رقم: {payload.get('table_number', '')}"
+            )
+        else:
+            customer = payload["customer"]
+            review_text = (
+                "يرجى تأكيد بيانات العميل:\n"
+                f"الاسم: {customer['name']}\n"
+                f"الهاتف: {customer['phone']}\n"
+                f"العنوان: {customer['address']}"
+            )
         if callback.message is not None:
             await callback.message.answer(
                 review_text, reply_markup=customer_review_keyboard()
@@ -455,6 +509,8 @@ async def finalize_order_with_customer(callback: CallbackQuery, bot: Bot) -> Non
     if not result.ok:
         if result.error == "missing_customer":
             await callback.answer("يرجى إكمال بيانات العميل أولاً.", show_alert=True)
+        elif result.error == "missing_table":
+            await callback.answer("يرجى إدخال رقم الطاولة أولاً.", show_alert=True)
         elif result.error == "no_draft":
             await callback.answer("لا يوجد طلب للتأكيد.", show_alert=True)
         else:
@@ -476,17 +532,24 @@ async def finalize_order_with_customer(callback: CallbackQuery, bot: Bot) -> Non
 
 
 async def edit_customer_data(callback: CallbackQuery) -> None:
+    step_after = None
     db: Session = SessionLocal()
     try:
         user = ensure_user(db, callback.from_user)
         reset_customer_for_edit(db, user.id, BOT_RESTAURANT_ID)
+        step_after = get_customer_input_step(db, user.id, BOT_RESTAURANT_ID)
     finally:
         db.close()
 
+    msg = (
+        "تم ✅ اكتب الآن رقم الطاولة:"
+        if step_after == "table_number"
+        else "تم ✅ اكتب الآن اسم العميل:"
+    )
     if callback.message is not None:
-        await callback.message.answer("تم ✅ اكتب الآن اسم العميل:")
+        await callback.message.answer(msg)
     else:
-        await callback.bot.send_message(callback.from_user.id, "تم ✅ اكتب الآن اسم العميل:")
+        await callback.bot.send_message(callback.from_user.id, msg)
     await callback.answer()
 
 

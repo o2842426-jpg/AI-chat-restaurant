@@ -116,6 +116,15 @@ if (!orderCols3.includes("public_order_note")) {
   db.prepare("ALTER TABLE orders ADD COLUMN public_order_note TEXT").run();
 }
 
+const orderCols4 = db.prepare("PRAGMA table_info(orders)").all().map((r) => r.name);
+if (!orderCols4.includes("order_type")) {
+  db.prepare("ALTER TABLE orders ADD COLUMN order_type TEXT").run();
+}
+const orderCols5 = db.prepare("PRAGMA table_info(orders)").all().map((r) => r.name);
+if (!orderCols5.includes("table_number")) {
+  db.prepare("ALTER TABLE orders ADD COLUMN table_number TEXT").run();
+}
+
 // Placeholder user for web/QR orders (not a Telegram account). Same id as dashboard public.routes.js.
 db.prepare(
   `

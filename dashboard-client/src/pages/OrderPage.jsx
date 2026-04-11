@@ -12,6 +12,9 @@ export default function OrderPage({ api = '/api' }) {
   const [loadingMenu, setLoadingMenu] = useState(true);
 
   const [quantities, setQuantities] = useState(() => ({}));
+  /** @type {'dine_in' | 'delivery'} */
+  const [orderType, setOrderType] = useState('delivery');
+  const [tableNumber, setTableNumber] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -95,24 +98,38 @@ export default function OrderPage({ api = '/api' }) {
       setSubmitError('اختر صنفاً واحداً على الأقل');
       return;
     }
-    if (!name.trim() || !phone.trim() || !address.trim()) {
-      setSubmitError('يرجى تعبئة الاسم والهاتف والعنوان');
-      return;
+    if (orderType === 'dine_in') {
+      if (!tableNumber.trim()) {
+        setSubmitError('يرجى إدخال رقم الطاولة');
+        return;
+      }
+    } else {
+      if (!name.trim() || !phone.trim() || !address.trim()) {
+        setSubmitError('يرجى تعبئة الاسم والهاتف والعنوان');
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
+      const payload = {
+        restaurant_id: rid,
+        order_type: orderType,
+        items: cartLines.map((l) => ({ menu_item_id: l.id, quantity: l.quantity })),
+        note: note.trim() || undefined,
+      };
+      if (orderType === 'dine_in') {
+        payload.table_number = tableNumber.trim();
+      } else {
+        payload.customer_name = name.trim();
+        payload.customer_phone = phone.trim();
+        payload.customer_address = address.trim();
+      }
+
       const res = await fetch(`${api}/public/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurant_id: rid,
-          items: cartLines.map((l) => ({ menu_item_id: l.id, quantity: l.quantity })),
-          customer_name: name.trim(),
-          customer_phone: phone.trim(),
-          customer_address: address.trim(),
-          note: note.trim() || undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -160,6 +177,35 @@ export default function OrderPage({ api = '/api' }) {
 
       {menuData && !loadError && (
         <form onSubmit={submit}>
+          <section style={card}>
+            <h2 style={h2}>نوع الطلب</h2>
+            <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.9rem' }}>
+              اختر داخل المطعم أو توصيل قبل إكمال الطلب.
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setOrderType('dine_in')}
+                style={orderType === 'dine_in' ? typeBtnActive : typeBtnIdle}
+              >
+                🍽️ داخل المطعم
+              </button>
+              <button
+                type="button"
+                onClick={() => setOrderType('delivery')}
+                style={orderType === 'delivery' ? typeBtnActive : typeBtnIdle}
+              >
+                🚚 توصيل
+              </button>
+            </div>
+          </section>
+
           <section style={card}>
             <h2 style={h2}>المنيو</h2>
             {Object.entries(menuData.categories || {}).map(([category, items]) => (
@@ -243,37 +289,50 @@ export default function OrderPage({ api = '/api' }) {
 
           <section style={card}>
             <h2 style={h2}>بياناتك</h2>
-            <div style={field}>
-              <label htmlFor="cust-name">الاسم</label>
-              <input
-                id="cust-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-                style={inputStyle}
-              />
-            </div>
-            <div style={field}>
-              <label htmlFor="cust-phone">الهاتف</label>
-              <input
-                id="cust-phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                style={inputStyle}
-              />
-            </div>
-            <div style={field}>
-              <label htmlFor="cust-addr">العنوان</label>
-              <textarea
-                id="cust-addr"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
-                rows={3}
-                style={{ ...inputStyle, resize: 'vertical' }}
-              />
-            </div>
+            {orderType === 'dine_in' ? (
+              <div style={field}>
+                <label htmlFor="table-num">رقم الطاولة</label>
+                <input
+                  id="table-num"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                  placeholder="مثال: 12"
+                  inputMode="numeric"
+                  style={inputStyle}
+                />
+              </div>
+            ) : (
+              <>
+                <div style={field}>
+                  <label htmlFor="cust-name">الاسم</label>
+                  <input
+                    id="cust-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={field}>
+                  <label htmlFor="cust-phone">الهاتف</label>
+                  <input
+                    id="cust-phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={field}>
+                  <label htmlFor="cust-addr">العنوان</label>
+                  <textarea
+                    id="cust-addr"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    rows={3}
+                    style={{ ...inputStyle, resize: 'vertical' }}
+                  />
+                </div>
+              </>
+            )}
             <div style={field}>
               <label htmlFor="cust-note">ملاحظة (اختياري)</label>
               <input id="cust-note" value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} />
@@ -372,4 +431,28 @@ const retryBtn = {
   border: '1px solid #991b1b',
   background: '#fff',
   cursor: 'pointer',
+};
+
+const typeBtnBase = {
+  flex: '1 1 140px',
+  padding: '0.65rem 0.85rem',
+  borderRadius: 10,
+  fontSize: '0.95rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+  border: '2px solid transparent',
+};
+
+const typeBtnActive = {
+  ...typeBtnBase,
+  background: '#059669',
+  color: '#fff',
+  borderColor: '#047857',
+};
+
+const typeBtnIdle = {
+  ...typeBtnBase,
+  background: '#fff',
+  color: '#374151',
+  borderColor: '#d1d5db',
 };

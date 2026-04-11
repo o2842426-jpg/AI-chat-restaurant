@@ -21,20 +21,45 @@ function parseTelegramChatId(raw) {
   return n;
 }
 
-function buildKitchenText(orderId, name, phone, address, itemLines, total, note) {
+function normalizePublicOrderType(raw) {
+  const s = String(raw == null ? "" : raw)
+    .trim()
+    .toLowerCase();
+  if (s === "dine_in") return "dine_in";
+  if (s === "delivery") return "delivery";
+  return null;
+}
+
+function buildKitchenText({
+  orderId,
+  orderType,
+  tableNumber,
+  name,
+  phone,
+  address,
+  itemLines,
+  total,
+  note,
+}) {
   const header = [`Order #${orderId}`];
-  const customerLines = [
-    "بيانات العميل:",
-    `- الاسم: ${name}`,
-    `- الهاتف: ${phone}`,
-    `- العنوان: ${address}`,
-    "",
-  ];
+  let metaLines;
+  if (orderType === "dine_in") {
+    metaLines = ["🍽️ داخل المطعم", `🍽️ طاولة رقم: ${tableNumber || "?"}`, ""];
+  } else {
+    metaLines = [
+      "🚚 توصيل",
+      "بيانات العميل:",
+      `- الاسم: ${name || "—"}`,
+      `- الهاتف: ${phone || "—"}`,
+      `- العنوان: ${address || "—"}`,
+      "",
+    ];
+  }
   if (note && String(note).trim()) {
-    customerLines.push(`- ملاحظة: ${String(note).trim()}`, "");
+    metaLines.push(`- ملاحظة: ${String(note).trim()}`, "");
   }
   const bodyLines = itemLines.map((l) => `${l.name} x${l.qty}`);
-  return [...header, ...customerLines, ...bodyLines, "", `Total: ${total.toFixed(2)}`].join("\n");
+  return [...header, ...metaLines, ...bodyLines, "", `Total: ${total.toFixed(2)}`].join("\n");
 }
 
 function createPublicRouter({ db, telegramBotToken }) {
@@ -91,10 +116,23 @@ function createPublicRouter({ db, telegramBotToken }) {
     try {
       const body = req.body || {};
       const restaurantId = Number(body.restaurant_id);
+      let orderType = normalizePublicOrderType(body.order_type);
+      if (orderType == null) {
+        orderType = "delivery";
+      }
+
       const customerName = typeof body.customer_name === "string" ? body.customer_name.trim() : "";
       const customerPhone = typeof body.customer_phone === "string" ? body.customer_phone.trim() : "";
       const customerAddress =
         typeof body.customer_address === "string" ? body.customer_address.trim() : "";
+      const tableNumberRaw = body.table_number;
+      const tableNumber =
+        tableNumberRaw == null || tableNumberRaw === ""
+          ? ""
+          : typeof tableNumberRaw === "string"
+            ? tableNumberRaw.trim()
+            : String(tableNumberRaw).trim();
+
       const noteRaw = body.note;
       const note =
         noteRaw == null || noteRaw === ""
@@ -106,8 +144,17 @@ function createPublicRouter({ db, telegramBotToken }) {
       if (!Number.isFinite(restaurantId) || restaurantId <= 0) {
         return res.status(400).json({ error: "invalid restaurant_id" });
       }
-      if (!customerName || !customerPhone || !customerAddress) {
-        return res.status(400).json({ error: "customer_name, customer_phone, and customer_address are required" });
+
+      if (orderType === "dine_in") {
+        if (!tableNumber) {
+          return res.status(400).json({ error: "table_number is required for dine_in orders" });
+        }
+      } else {
+        if (!customerName || !customerPhone || !customerAddress) {
+          return res.status(400).json({
+            error: "customer_name, customer_phone, and customer_address are required for delivery",
+          });
+        }
       }
 
       const itemsIn = Array.isArray(body.items) ? body.items : null;
@@ -175,6 +222,11 @@ function createPublicRouter({ db, telegramBotToken }) {
       let totalAmount;
       let kitchenItemLines;
 
+      const nameSnap = orderType === "dine_in" ? null : customerName || null;
+      const phoneSnap = orderType === "dine_in" ? null : customerPhone || null;
+      const addrSnap = orderType === "dine_in" ? null : customerAddress || null;
+      const tableSnap = orderType === "dine_in" ? tableNumber : null;
+
       const tx = db.transaction(() => {
         const info = db
           .prepare(
@@ -182,9 +234,9 @@ function createPublicRouter({ db, telegramBotToken }) {
             INSERT INTO orders (
               restaurant_id, user_id, status, created_at, updated_at,
               customer_name_snapshot, customer_phone_snapshot, customer_address_snapshot,
-              customer_input_step, public_order_note
+              customer_input_step, public_order_note, order_type, table_number
             )
-            VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, NULL, ?)
+            VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, NULL, ?, ?, ?)
           `
           )
           .run(
@@ -192,10 +244,12 @@ function createPublicRouter({ db, telegramBotToken }) {
             WEB_ORDER_USER_ID,
             now,
             now,
-            customerName,
-            customerPhone,
-            customerAddress,
-            note
+            nameSnap,
+            phoneSnap,
+            addrSnap,
+            note,
+            orderType,
+            tableSnap
           );
 
         orderId = Number(info.lastInsertRowid);
@@ -255,15 +309,17 @@ function createPublicRouter({ db, telegramBotToken }) {
 
       tx();
 
-      const kitchenText = buildKitchenText(
+      const kitchenText = buildKitchenText({
         orderId,
-        customerName,
-        customerPhone,
-        customerAddress,
-        kitchenItemLines,
-        totalAmount,
-        note
-      );
+        orderType,
+        tableNumber: tableSnap,
+        name: customerName,
+        phone: customerPhone,
+        address: customerAddress,
+        itemLines: kitchenItemLines,
+        total: totalAmount,
+        note,
+      });
 
       const fromDb = parseTelegramChatId(restaurant.telegram_group_id);
       const fromEnv = parseTelegramChatId(process.env.KITCHEN_GROUP_ID);

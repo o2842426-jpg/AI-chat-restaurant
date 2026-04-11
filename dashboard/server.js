@@ -18,6 +18,21 @@ const { isTelegramKitchenDisabled } = require("./src/services/telegramKitchen");
 
 const app = express();
 
+function sendHealthJson(res) {
+  res.set("Cache-Control", "no-store");
+  res.json({ ok: true, service: "restaurant-dashboard-api" });
+}
+
+// First middleware: health must never depend on deploy order or req.path quirks.
+app.use((req, res, next) => {
+  if (req.method !== "GET") return next();
+  const pathname = (req.originalUrl || "").split("?")[0].replace(/\/+$/, "") || "/";
+  if (pathname === "/api/health" || pathname === "/health") {
+    return sendHealthJson(res);
+  }
+  next();
+});
+
 app.use(cors());
 app.use(express.json());
 
@@ -40,13 +55,15 @@ app.use(
   })
 );
 
-app.use(
-  "/api/public",
-  createPublicRouter({
-    db,
-    telegramBotToken: process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "",
-  })
-);
+const publicRouter = createPublicRouter({
+  db,
+  telegramBotToken: process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN || "",
+});
+// Standard path (Vite dev proxy, correct nginx that keeps full URI):
+app.use("/api/public", publicRouter);
+// Some nginx configs use `proxy_pass http://127.0.0.1:3000/;` under `location /api/` which
+// strips the /api prefix — browser calls /api/public/menu/4 but Node receives /public/menu/4.
+app.use("/public", publicRouter);
 
 // من هذه النقطة وما بعدها، كل المسارات تحتاج توكن مطعم صحيح
 app.use(authMiddleware(JWT_SECRET, db));

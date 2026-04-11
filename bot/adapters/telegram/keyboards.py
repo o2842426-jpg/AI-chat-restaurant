@@ -90,3 +90,22 @@ def customer_review_keyboard() -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def order_type_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🍽️ داخل المطعم",
+                    callback_data="order_type:dine_in",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🚚 توصيل",
+                    callback_data="order_type:delivery",
+                ),
+            ],
+        ]
+    )

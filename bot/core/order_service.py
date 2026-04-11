@@ -11,6 +11,7 @@ from config import BOT_RESTAURANT_ID
 from db import Order, OrderItem, MenuItem, OrderStatusHistory
 from models import get_last_confirmed_order, get_or_create_draft_order
 
+from .customer_service import ORDER_TYPE_DINE_IN, effective_order_type_for_validation
 from .pricing_service import line_subtotal
 from .types import ConfirmOrderResult
 
@@ -60,16 +61,21 @@ def confirm_draft_order(db: Session, user_id: int, restaurant_id: int) -> Confir
     if not order:
         return ConfirmOrderResult(ok=False, error="no_draft")
 
-    # Domain rule: require customer snapshots before confirming.
-    if (
-        order.customer_name_snapshot is None
-        or str(order.customer_name_snapshot).strip() == ""
-        or order.customer_phone_snapshot is None
-        or str(order.customer_phone_snapshot).strip() == ""
-        or order.customer_address_snapshot is None
-        or str(order.customer_address_snapshot).strip() == ""
-    ):
-        return ConfirmOrderResult(ok=False, error="missing_customer")
+    eff = effective_order_type_for_validation(order)
+    if eff == ORDER_TYPE_DINE_IN:
+        if order.table_number is None or str(order.table_number).strip() == "":
+            return ConfirmOrderResult(ok=False, error="missing_table")
+    else:
+        # delivery (including legacy NULL order_type)
+        if (
+            order.customer_name_snapshot is None
+            or str(order.customer_name_snapshot).strip() == ""
+            or order.customer_phone_snapshot is None
+            or str(order.customer_phone_snapshot).strip() == ""
+            or order.customer_address_snapshot is None
+            or str(order.customer_address_snapshot).strip() == ""
+        ):
+            return ConfirmOrderResult(ok=False, error="missing_customer")
 
     items = db.query(OrderItem).filter_by(order_id=order.id).all()
     if not items:
@@ -77,13 +83,21 @@ def confirm_draft_order(db: Session, user_id: int, restaurant_id: int) -> Confir
 
     header = [f"Order #{order.id}"]
     body_lines, total = build_order_summary_lines(db, order.id, restaurant_id)
-    customer_lines = [
-        "بيانات العميل:",
-        f"- الاسم: {order.customer_name_snapshot}",
-        f"- الهاتف: {order.customer_phone_snapshot}",
-        f"- العنوان: {order.customer_address_snapshot}",
-        "",
-    ]
+    if eff == ORDER_TYPE_DINE_IN:
+        customer_lines = [
+            "🍽️ داخل المطعم",
+            f"🍽️ طاولة رقم: {str(order.table_number).strip()}",
+            "",
+        ]
+    else:
+        customer_lines = [
+            "🚚 توصيل",
+            "بيانات العميل:",
+            f"- الاسم: {order.customer_name_snapshot}",
+            f"- الهاتف: {order.customer_phone_snapshot}",
+            f"- العنوان: {order.customer_address_snapshot}",
+            "",
+        ]
     kitchen_lines = header + customer_lines + body_lines + [f"\nTotal: {total:.2f}"]
     kitchen_text = "\n".join(kitchen_lines)
 
@@ -134,6 +148,19 @@ def repeat_last_order_into_draft(db: Session, user_id: int, restaurant_id: int) 
             )
         )
     new_order.updated_at = datetime.utcnow()
+    new_order.order_type = last_order.order_type
+    new_order.table_number = last_order.table_number
+    new_order.customer_name_snapshot = last_order.customer_name_snapshot
+    new_order.customer_phone_snapshot = last_order.customer_phone_snapshot
+    new_order.customer_address_snapshot = last_order.customer_address_snapshot
+    if (last_order.order_type or "") == ORDER_TYPE_DINE_IN:
+        new_order.customer_input_step = (
+            "table_number"
+            if not (last_order.table_number and str(last_order.table_number).strip())
+            else "review"
+        )
+    else:
+        new_order.customer_input_step = "review"
     db.commit()
 
     lines = ["تم إنشاء طلب جديد بناءً على آخر طلب:"]
