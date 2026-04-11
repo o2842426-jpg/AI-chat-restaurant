@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+build/
+*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# قاعدة البيانات المحلية (احذف السطر التالي إذا أردت رفع DB تجريبية للمستودع)
+*.db
+
+# Cursor (اختياري)
+.cursor/
