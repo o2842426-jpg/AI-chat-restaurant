@@ -29,7 +29,7 @@ function createOrdersRouter({ db }) {
              customer_name_snapshot, customer_phone_snapshot, customer_address_snapshot,
              public_order_note, order_type, table_number
       FROM orders
-      WHERE restaurant_id = ? AND status = ?
+      WHERE restaurant_id = ? AND status = ? AND COALESCE(is_deleted, 0) = 0
       ORDER BY id DESC
       LIMIT ?
     `
@@ -44,6 +44,7 @@ function createOrdersRouter({ db }) {
                public_order_note, order_type, table_number
         FROM orders
         WHERE restaurant_id = ? AND LOWER(COALESCE(status,'')) != 'draft'
+          AND COALESCE(is_deleted, 0) = 0
         ORDER BY id DESC
         LIMIT ?
       `
@@ -250,6 +251,54 @@ function createOrdersRouter({ db }) {
       res.json(history);
     } catch (error) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  router.patch("/:id/delete", (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        return res.status(400).json({ error: "invalid order id" });
+      }
+
+      const row = db
+        .prepare(
+          `
+          SELECT id, status
+          FROM orders
+          WHERE id = ? AND restaurant_id = ?
+        `
+        )
+        .get(id, req.restaurantId);
+
+      if (!row) {
+        return res.status(404).json({ error: "order not found" });
+      }
+
+      // اختيارية: منع حذف draft
+      const current = normalizeStatus(row.status);
+      if (current === "draft") {
+        return res.status(403).json({ error: "cannot delete draft order" });
+      }
+
+      const now = nowSqlite();
+      const result = db
+        .prepare(
+          `
+          UPDATE orders
+          SET is_deleted = 1, updated_at = ?
+          WHERE id = ? AND restaurant_id = ?
+        `
+        )
+        .run(now, id, req.restaurantId);
+
+      if (result.changes === 0) {
+        return res.status(404).json({ error: "order not found" });
+      }
+
+      return res.json({ ok: true, id });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
     }
   });
 

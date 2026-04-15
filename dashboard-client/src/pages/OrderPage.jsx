@@ -303,6 +303,19 @@ export default function OrderPage({ api = '/api' }) {
     );
   }
 
+    const deleteOrder = (orderId) => {
+    const ok = window.confirm(`هل تريد حذف الطلب #${orderId}؟`);
+    if (!ok) return;
+
+    authFetch(`${api}/orders/${orderId}/delete`, {
+      method: 'PATCH',
+    })
+      .then(() => {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      })
+      .catch((err) => setError(err.message));
+  };
+
   return (
     <div dir="rtl" lang="ar" style={pageWrap}>
       <header style={{ marginBottom: '1.5rem' }}>

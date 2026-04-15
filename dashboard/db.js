@@ -147,4 +147,17 @@ db.prepare(`
   )
 `).run();
 
+
+
+const orderCols6 = db.prepare("PRAGMA table_info(orders)").all().map((r) => r.name);
+if (!orderCols6.includes("is_deleted")) {
+  db.prepare("ALTER TABLE orders ADD COLUMN is_deleted INTEGER DEFAULT 0").run();
+}
+db.prepare(`
+  UPDATE orders
+  SET is_deleted = 0
+  WHERE is_deleted IS NULL
+`).run();
+
 module.exports = db;
+

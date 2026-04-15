@@ -46,6 +46,19 @@ export default function Orders({ api }) {
       .catch((err) => setError(err.message));
   };
 
+  const deleteOrder = (orderId) => {
+    const ok = window.confirm(`هل تريد حذف الطلب #${orderId}؟`);
+    if (!ok) return;
+
+    authFetch(`${api}/orders/${orderId}/delete`, {
+      method: 'PATCH',
+    })
+      .then(() => {
+        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+      })
+      .catch((err) => setError(err.message));
+  };
+
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
 
@@ -106,6 +119,7 @@ export default function Orders({ api }) {
               <th>ملاحظة</th>
               <th>الحالة</th>
               <th>تغيير</th>
+            <th>حذف</th>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +165,23 @@ export default function Orders({ api }) {
                       </option>
                     ))}
                   </select>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => deleteOrder(order.id)}
+                    style={{
+                      background: '#dc2626',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '0.35rem 0.65rem',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    حذف
+                  </button>
                 </td>
               </tr>
             ))}
