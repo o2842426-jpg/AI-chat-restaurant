@@ -112,6 +112,39 @@ function createPublicRouter({ db, telegramBotToken }) {
     }
   });
 
+  router.get("/orders/:id/status", (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isFinite(id) || id <= 0) {
+        return res.status(400).json({ error: "invalid order id" });
+      }
+
+      const row = db
+        .prepare(
+          `
+          SELECT id, status, updated_at
+          FROM orders
+          WHERE id = ?
+        `
+        )
+        .get(id);
+
+      if (!row) {
+        return res.status(404).json({ error: "order not found" });
+      }
+
+      const status = String(row.status || "").trim().toLowerCase();
+      return res.json({
+        order_id: row.id,
+        status,
+        updated_at: row.updated_at ?? null,
+      });
+    } catch (err) {
+      console.error("[public/orders/:id/status]", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   router.post("/orders", (req, res) => {
     try {
       const body = req.body || {};

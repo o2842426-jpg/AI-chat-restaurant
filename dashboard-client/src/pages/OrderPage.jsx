@@ -1,7 +1,59 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 const MAX_QTY = 5;
+const TRACK_POLL_MS = 5000;
+
+const STATUS_TEXT_AR = {
+  confirmed: 'تم استلام الطلب',
+  preparing: 'جاري التحضير',
+  ready: 'طلبك جاهز',
+  delivered: 'تم التسليم',
+};
+
+function normalizeTrackStatus(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (s === 'confirmed' || s === 'preparing' || s === 'ready' || s === 'delivered') {
+    return s;
+  }
+  return 'confirmed';
+}
+
+function supportsNotifications() {
+  return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+async function playStatusBeep(type) {
+  if (typeof window === 'undefined') return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return;
+  try {
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = type === 'ready' ? 920 : 740;
+    gain.gain.value = 0.001;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    gain.gain.exponentialRampToValueAtTime(0.07, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.26);
+    osc.start(now);
+    osc.stop(now + 0.28);
+    setTimeout(() => {
+      void ctx.close();
+    }, 350);
+  } catch {
+    // Best-effort only; browsers may block autoplay.
+  }
+}
+
+function statusNotificationText(status) {
+  if (status === 'preparing') return 'تم البدء بتحضير طلبك';
+  if (status === 'ready') return 'طلبك جاهز الآن';
+  return '';
+}
 
 function parseQrDineInParams(searchParams) {
   const mode = (searchParams.get('mode') || '').trim().toLowerCase();
@@ -34,7 +86,10 @@ export default function OrderPage({ api = '/api' }) {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-  const [success, setSuccess] = useState(false);
+  const [trackingOrderId, setTrackingOrderId] = useState(null);
+  const [trackingStatus, setTrackingStatus] = useState(null);
+  const [trackingError, setTrackingError] = useState(null);
+  const prevTrackingStatusRef = useRef(null);
 
   const loadMenu = useCallback(async () => {
     if (!Number.isFinite(rid) || rid <= 0) {
@@ -61,6 +116,72 @@ export default function OrderPage({ api = '/api' }) {
   useEffect(() => {
     loadMenu();
   }, [loadMenu]);
+
+  useEffect(() => {
+    if (trackingOrderId == null || trackingStatus === 'delivered') return undefined;
+
+    let cancelled = false;
+    let timer = null;
+
+    const pull = async () => {
+      try {
+        const res = await fetch(`${api}/public/orders/${trackingOrderId}/status`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || 'تعذر تحديث حالة الطلب');
+        }
+        const next = normalizeTrackStatus(data.status);
+        if (cancelled) return;
+        setTrackingStatus(next);
+        setTrackingError(null);
+        if (next !== 'delivered') {
+          timer = setTimeout(pull, TRACK_POLL_MS);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        setTrackingError(err.message || 'تعذر تحديث حالة الطلب');
+        timer = setTimeout(pull, TRACK_POLL_MS);
+      }
+    };
+
+    timer = setTimeout(pull, TRACK_POLL_MS);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [api, trackingOrderId, trackingStatus]);
+
+  useEffect(() => {
+    if (!trackingStatus) return;
+
+    const prev = prevTrackingStatusRef.current;
+    if (!prev) {
+      prevTrackingStatusRef.current = trackingStatus;
+      return;
+    }
+    if (prev === trackingStatus) return;
+    prevTrackingStatusRef.current = trackingStatus;
+
+    if (trackingStatus === 'preparing' || trackingStatus === 'ready') {
+      void playStatusBeep(trackingStatus);
+      if (supportsNotifications() && Notification.permission === 'granted') {
+        const text = statusNotificationText(trackingStatus);
+        if (text) {
+          try {
+            new Notification(text, { body: `رقم الطلب #${trackingOrderId}` });
+          } catch {
+            // Ignore notification errors.
+          }
+        }
+      }
+    }
+  }, [trackingOrderId, trackingStatus]);
+
+  useEffect(() => {
+    if (trackingOrderId == null || !supportsNotifications()) return;
+    if (Notification.permission !== 'default') return;
+    Notification.requestPermission().catch(() => {});
+  }, [trackingOrderId]);
 
   const itemById = useMemo(() => {
     const map = new Map();
@@ -104,7 +225,7 @@ export default function OrderPage({ api = '/api' }) {
   const submit = async (e) => {
     e.preventDefault();
     setSubmitError(null);
-    setSuccess(false);
+    setTrackingError(null);
 
     if (cartLines.length === 0) {
       setSubmitError('اختر صنفاً واحداً على الأقل');
@@ -151,7 +272,11 @@ export default function OrderPage({ api = '/api' }) {
       if (!res.ok) {
         throw new Error(data.error || 'تعذر إرسال الطلب');
       }
-      setSuccess(true);
+      const newOrderId = Number(data.order_id);
+      const nextStatus = normalizeTrackStatus(data.status);
+      setTrackingOrderId(Number.isFinite(newOrderId) ? newOrderId : null);
+      setTrackingStatus(nextStatus);
+      prevTrackingStatusRef.current = nextStatus;
       setQuantities({});
       setNote('');
     } catch (err) {
@@ -160,6 +285,15 @@ export default function OrderPage({ api = '/api' }) {
       setSubmitting(false);
     }
   };
+
+  const restartOrdering = () => {
+    setTrackingOrderId(null);
+    setTrackingStatus(null);
+    setTrackingError(null);
+    prevTrackingStatusRef.current = null;
+  };
+
+  const showTracking = trackingOrderId != null;
 
   if (!Number.isFinite(rid) || rid <= 0) {
     return (
@@ -191,7 +325,45 @@ export default function OrderPage({ api = '/api' }) {
         </div>
       )}
 
-      {menuData && !loadError && (
+      {menuData && !loadError && (showTracking ? (
+        <section style={{ ...card, ...trackingCard }}>
+          <h2 style={{ ...h2, marginBottom: '0.5rem' }}>متابعة الطلب</h2>
+          <p style={{ margin: 0, color: '#6b7280', fontSize: '0.9rem' }}>
+            اترك هذه الصفحة مفتوحة لمتابعة الطلب.
+          </p>
+          <p style={{ margin: '0.65rem 0 0', fontSize: '0.95rem' }}>
+            رقم الطلب: <strong>#{trackingOrderId}</strong>
+          </p>
+          <div style={trackingStatusBox(trackingStatus)}>
+            <div style={{ fontWeight: 700, fontSize: '1rem' }}>
+              {STATUS_TEXT_AR[trackingStatus] || 'يتم تحديث الحالة...'}
+            </div>
+            {trackingStatus !== 'delivered' && (
+              <div style={{ fontSize: '0.85rem', color: '#374151', marginTop: '0.35rem' }}>
+                سيتم تحديث الحالة تلقائياً كل 5 ثوانٍ
+              </div>
+            )}
+          </div>
+          {supportsNotifications() ? (
+            <p style={{ margin: 0, fontSize: '0.83rem', color: '#6b7280' }}>
+              إشعارات المتصفح: <strong>{Notification.permission === 'granted' ? 'مفعّلة' : Notification.permission === 'denied' ? 'مرفوضة' : 'بانتظار الإذن'}</strong>
+            </p>
+          ) : (
+            <p style={{ margin: 0, fontSize: '0.83rem', color: '#6b7280' }}>
+              المتصفح الحالي لا يدعم إشعارات النظام.
+            </p>
+          )}
+          {trackingError && <div style={errorBox}>{trackingError}</div>}
+          {trackingStatus === 'delivered' && (
+            <div style={{ ...errorBox, background: '#ecfdf5', borderColor: '#6ee7b7', color: '#065f46' }}>
+              تم إنهاء الطلب. شكراً لك.
+            </div>
+          )}
+          <button type="button" onClick={restartOrdering} style={newOrderBtn}>
+            إنشاء طلب جديد
+          </button>
+        </section>
+      ) : (
         <form onSubmit={submit}>
           {qrDineIn.locked ? (
             <section style={{ ...card, ...qrTableBanner }}>
@@ -367,18 +539,6 @@ export default function OrderPage({ api = '/api' }) {
           </section>
 
           {submitError && <div style={errorBox}>{submitError}</div>}
-          {success && (
-            <div
-              style={{
-                ...errorBox,
-                background: '#ecfdf5',
-                borderColor: '#6ee7b7',
-                color: '#065f46',
-              }}
-            >
-              تم إرسال الطلب بنجاح
-            </div>
-          )}
 
           <button
             type="submit"
@@ -399,7 +559,7 @@ export default function OrderPage({ api = '/api' }) {
             {submitting ? 'جاري الإرسال…' : 'إرسال الطلب'}
           </button>
         </form>
-      )}
+      ))}
     </div>
   );
 }
@@ -487,4 +647,34 @@ const typeBtnIdle = {
 const qrTableBanner = {
   background: '#ecfdf5',
   border: '1px solid #6ee7b7',
+};
+
+function trackingStatusBox(status) {
+  const done = status === 'delivered';
+  return {
+    marginTop: '0.9rem',
+    marginBottom: '0.9rem',
+    borderRadius: 10,
+    padding: '0.85rem 0.95rem',
+    background: done ? '#ecfdf5' : '#eff6ff',
+    border: `1px solid ${done ? '#6ee7b7' : '#bfdbfe'}`,
+    color: done ? '#065f46' : '#1e3a8a',
+  };
+}
+
+const trackingCard = {
+  border: '1px solid #e5e7eb',
+};
+
+const newOrderBtn = {
+  marginTop: '0.25rem',
+  width: '100%',
+  padding: '0.75rem 1rem',
+  background: '#111827',
+  color: '#fff',
+  border: 'none',
+  borderRadius: 10,
+  fontSize: '0.95rem',
+  fontWeight: 600,
+  cursor: 'pointer',
 };
