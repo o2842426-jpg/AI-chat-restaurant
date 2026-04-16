@@ -52,6 +52,26 @@ export default function Menu({ api }) {
       .catch((err) => setError(err.message));
   };
 
+  const toggleAvailability = (item) => {
+    const next = Number(item.is_active) === 1 ? 0 : 1;
+    authFetch(`${api}/menu/${item.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: item.name,
+        category: item.category,
+        price: Number(item.price),
+        is_active: next,
+      }),
+    })
+      .then(() => {
+        setItems((prev) =>
+          prev.map((x) => (x.id === item.id ? { ...x, is_active: next } : x))
+        );
+      })
+      .catch((err) => setError(err.message));
+  };
+
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
 
@@ -86,6 +106,7 @@ export default function Menu({ api }) {
             <th>الاسم</th>
             <th>الفئة</th>
             <th>السعر</th>
+            <th>التوفر</th>
             <th></th>
           </tr>
         </thead>
@@ -95,6 +116,16 @@ export default function Menu({ api }) {
               <td>{item.name}</td>
               <td>{item.category}</td>
               <td>{item.price}</td>
+              <td>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={Number(item.is_active) !== 0}
+                    onChange={() => toggleAvailability(item)}
+                  />
+                  {Number(item.is_active) !== 0 ? 'متاح' : 'غير متاح'}
+                </label>
+              </td>
               <td>
                 <button className="secondary" onClick={() => remove(item.id)}>
                   حذف

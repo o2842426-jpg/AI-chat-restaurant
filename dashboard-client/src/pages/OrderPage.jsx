@@ -303,19 +303,6 @@ export default function OrderPage({ api = '/api' }) {
     );
   }
 
-    const deleteOrder = (orderId) => {
-    const ok = window.confirm(`هل تريد حذف الطلب #${orderId}؟`);
-    if (!ok) return;
-
-    authFetch(`${api}/orders/${orderId}/delete`, {
-      method: 'PATCH',
-    })
-      .then(() => {
-        setOrders((prev) => prev.filter((o) => o.id !== orderId));
-      })
-      .catch((err) => setError(err.message));
-  };
-
   return (
     <div dir="rtl" lang="ar" style={pageWrap}>
       <header style={{ marginBottom: '1.5rem' }}>
@@ -424,7 +411,9 @@ export default function OrderPage({ api = '/api' }) {
               <div key={category} style={{ marginBottom: '1.25rem' }}>
                 <h3 style={h3}>{category}</h3>
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {items.map((it) => (
+                  {items.map((it) => {
+                    const isAvailable = it.is_active == null ? true: Boolean(it.is_active)
+                    return (
                     <li
                       key={it.id}
                       style={{
@@ -437,7 +426,9 @@ export default function OrderPage({ api = '/api' }) {
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: 600 }}>{it.name}</div>
+                      <div style={{ fontWeight: 600, color: isAvailable ? '#111827' : '#9ca3af' }}>
+                            {it.name}{!isAvailable ? ' (غير متوفر)' : ''}
+                          </div>
                         <div style={{ color: '#6b7280', fontSize: '0.9rem' }}>{it.price.toFixed(2)}</div>
                       </div>
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.9rem' }}>
@@ -446,6 +437,7 @@ export default function OrderPage({ api = '/api' }) {
                           value={quantities[it.id] ?? 0}
                           onChange={(ev) => setQty(it.id, ev.target.value)}
                           style={selectStyle}
+                          disabled={!isAvailable}
                         >
                           <option value={0}>0</option>
                           {[1, 2, 3, 4, 5].map((n) => (
@@ -456,7 +448,8 @@ export default function OrderPage({ api = '/api' }) {
                         </select>
                       </label>
                     </li>
-                  ))}
+                    )
+                      })}
                 </ul>
               </div>
             ))}

@@ -85,10 +85,9 @@ function createPublicRouter({ db, telegramBotToken }) {
       const rows = db
         .prepare(
           `
-          SELECT id, name, category, price
+          SELECT id, name, category, price , is_active
           FROM menu_items
           WHERE restaurant_id = ?
-            AND COALESCE(is_active, 1) = 1
           ORDER BY category ASC, name ASC
         `
         )
@@ -102,6 +101,7 @@ function createPublicRouter({ db, telegramBotToken }) {
           id: r.id,
           name: r.name,
           price: Number(r.price),
+          is_active: Number(r.is_active) === 0 ? 0 : 1,
         });
       }
 

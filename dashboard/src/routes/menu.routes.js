@@ -11,7 +11,6 @@ function createMenuRouter({ db }) {
      SELECT *
      FROM menu_items
      WHERE restaurant_id = ?
-        AND COALESCE(is_active, 1) = 1
      ORDER BY category, name
     `
         )
