@@ -62,6 +62,33 @@ export default function Admin({ api }) {
       .catch((err) => setError(err.message));
   };
 
+  const updatePrepTime = (restaurant) => {
+    const current =
+      restaurant.default_prep_minutes == null ? '' : String(restaurant.default_prep_minutes);
+    const raw = window.prompt(
+      'أدخل وقت التحضير الافتراضي بالدقائق (اتركه فارغًا لإلغاء التحديد):',
+      current
+    );
+    if (raw === null) return;
+    const value = String(raw).trim();
+    const payload =
+      value === ''
+        ? { default_prep_minutes: null }
+        : { default_prep_minutes: Number(value) };
+
+    authFetch(`${api}/admin/restaurants/${restaurant.id}/prep-time`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then((updated) => {
+        setRestaurants((prev) =>
+          prev.map((r) => (r.id === restaurant.id ? { ...r, ...updated } : r))
+        );
+      })
+      .catch((err) => setError(err.message));
+  };
+
   if (loading) return <LoadingState />;
   if (error) return <ErrorState error={error} />;
 
@@ -196,6 +223,7 @@ export default function Admin({ api }) {
               <th style={thStyle}>الاسم</th>
               <th style={thStyle}>الإيميل</th>
               <th style={thStyle}>Telegram Group</th>
+              <th style={thStyle}>وقت التحضير</th>
               <th style={thStyle}>تاريخ الإنشاء</th>
               <th style={thStyle}>الحالة</th>
               <th style={thStyle}>إجراء</th>
@@ -208,6 +236,9 @@ export default function Admin({ api }) {
                 <td style={tdStyle}>{r.name}</td>
                 <td style={tdStyle}>{r.email}</td>
                 <td style={tdStyle}>{r.telegram_group_id ?? '—'}</td>
+                <td style={tdStyle}>
+                  {r.default_prep_minutes == null ? 'غير محدد' : `${r.default_prep_minutes} دقيقة`}
+                </td>
                 <td style={tdStyle}>{r.created_at?.slice(0, 16) || '—'}</td>
                 <td style={tdStyle}>
                   {Number(r.is_active) === 1 ? (
@@ -217,19 +248,34 @@ export default function Admin({ api }) {
                   )}
                 </td>
                 <td style={tdStyle}>
-                  <button
-                    onClick={() => toggleRestaurant(r)}
-                    style={{
-                      border: 'none',
-                      borderRadius: 8,
-                      padding: '0.35rem 0.65rem',
-                      cursor: 'pointer',
-                      color: 'white',
-                      background: Number(r.is_active) === 1 ? '#dc2626' : '#16a34a',
-                    }}
-                  >
-                    {Number(r.is_active) === 1 ? 'تعطيل' : 'تفعيل'}
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => updatePrepTime(r)}
+                      style={{
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '0.35rem 0.65rem',
+                        cursor: 'pointer',
+                        color: 'white',
+                        background: '#2563eb',
+                      }}
+                    >
+                      وقت التحضير
+                    </button>
+                    <button
+                      onClick={() => toggleRestaurant(r)}
+                      style={{
+                        border: 'none',
+                        borderRadius: 8,
+                        padding: '0.35rem 0.65rem',
+                        cursor: 'pointer',
+                        color: 'white',
+                        background: Number(r.is_active) === 1 ? '#dc2626' : '#16a34a',
+                      }}
+                    >
+                      {Number(r.is_active) === 1 ? 'تعطيل' : 'تفعيل'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
