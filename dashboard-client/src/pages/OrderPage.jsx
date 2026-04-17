@@ -89,6 +89,7 @@ export default function OrderPage({ api = '/api' }) {
   const [trackingOrderId, setTrackingOrderId] = useState(null);
   const [trackingStatus, setTrackingStatus] = useState(null);
   const [trackingError, setTrackingError] = useState(null);
+  const [estimatedPrepMinutes, setEstimatedPrepMinutes] = useState(null);
   const prevTrackingStatusRef = useRef(null);
 
   const loadMenu = useCallback(async () => {
@@ -133,6 +134,9 @@ export default function OrderPage({ api = '/api' }) {
         const next = normalizeTrackStatus(data.status);
         if (cancelled) return;
         setTrackingStatus(next);
+        setEstimatedPrepMinutes(
+          data.estimated_prep_minutes == null ? null : Number(data.estimated_prep_minutes)
+        );
         setTrackingError(null);
         if (next !== 'delivered') {
           timer = setTimeout(pull, TRACK_POLL_MS);
@@ -276,6 +280,9 @@ export default function OrderPage({ api = '/api' }) {
       const nextStatus = normalizeTrackStatus(data.status);
       setTrackingOrderId(Number.isFinite(newOrderId) ? newOrderId : null);
       setTrackingStatus(nextStatus);
+      setEstimatedPrepMinutes(
+        data.estimated_prep_minutes == null ? null : Number(data.estimated_prep_minutes)
+      );
       prevTrackingStatusRef.current = nextStatus;
       setQuantities({});
       setNote('');
@@ -290,6 +297,7 @@ export default function OrderPage({ api = '/api' }) {
     setTrackingOrderId(null);
     setTrackingStatus(null);
     setTrackingError(null);
+    setEstimatedPrepMinutes(null);
     prevTrackingStatusRef.current = null;
   };
 
@@ -333,6 +341,11 @@ export default function OrderPage({ api = '/api' }) {
           </p>
           <p style={{ margin: '0.65rem 0 0', fontSize: '0.95rem' }}>
             رقم الطلب: <strong>#{trackingOrderId}</strong>
+          </p>
+          <p style={{ margin: '0.45rem 0 0', fontSize: '0.92rem', color: '#374151' }}>
+            {estimatedPrepMinutes != null && Number.isFinite(estimatedPrepMinutes) && estimatedPrepMinutes >= 1
+              ? `الوقت المتوقع لتجهيز الطلب: ${Math.floor(estimatedPrepMinutes)} دقيقة`
+              : 'سيتم تحديد وقت التجهيز قريبًا'}
           </p>
           <div style={trackingStatusBox(trackingStatus)}>
             <div style={{ fontWeight: 700, fontSize: '1rem' }}>

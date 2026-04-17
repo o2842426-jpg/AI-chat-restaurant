@@ -9,7 +9,7 @@ function createAdminRouter({ db, adminAuth }) {
       const rows = db
         .prepare(
           `
-      SELECT id, name, email, telegram_group_id, created_at, is_active
+      SELECT id, name, email, telegram_group_id, created_at, is_active , default_prep_minutes
       FROM restaurants
       ORDER BY id ASC
     `
@@ -73,7 +73,8 @@ function createAdminRouter({ db, adminAuth }) {
   router.patch("/restaurants/:id/activation", adminAuth, (req, res) => {
     try {
       const restaurantId = Number(req.params.id);
-      const { is_active } = req.body;
+      const { is_active  } = req.body;
+   
       if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
         return res.status(400).json({ error: "invalid restaurant id" });
       }
@@ -89,12 +90,60 @@ function createAdminRouter({ db, adminAuth }) {
       const updated = db
         .prepare(
           `
-          SELECT id, name, email, telegram_group_id, created_at, is_active
+          SELECT id, name, email, telegram_group_id, created_at, is_active 
           FROM restaurants
           WHERE id = ?
         `
         )
         .get(restaurantId);
+      return res.json(updated);
+    } catch (err) {
+      console.log(err.message);
+      return res.status(500).json({ error: "internal server error" });
+    }
+  });
+
+
+  router.patch("/restaurants/:id/prep-time", adminAuth, (req, res) => {
+    try {
+      const restaurantId = Number(req.params.id);
+      const { default_prep_minutes } = req.body;
+
+      if (!Number.isInteger(restaurantId) || restaurantId <= 0) {
+        return res.status(400).json({ error: "invalid restaurant id" });
+      }
+
+      const exists = db.prepare("SELECT id FROM restaurants WHERE id = ?").get(restaurantId);
+      if (!exists) {
+        return res.status(404).json({ error: "restaurant not found" });
+      }
+
+      let prepToSave = null;
+      if (default_prep_minutes !== null && default_prep_minutes !== undefined) {
+        const prep = Number(default_prep_minutes);
+        if (!Number.isInteger(prep) || prep < 1) {
+          return res
+            .status(400)
+            .json({ error: "default_prep_minutes must be an integer >= 1 or null" });
+        }
+        prepToSave = prep;
+      }
+
+      db.prepare("UPDATE restaurants SET default_prep_minutes = ? WHERE id = ?").run(
+        prepToSave,
+        restaurantId
+      );
+
+      const updated = db
+        .prepare(
+          `
+          SELECT id, name, email, telegram_group_id, created_at, is_active, default_prep_minutes
+          FROM restaurants
+          WHERE id = ?
+        `
+        )
+        .get(restaurantId);
+
       return res.json(updated);
     } catch (err) {
       console.log(err.message);

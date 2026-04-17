@@ -50,7 +50,9 @@ db.prepare(`
 // Restaurant activation flag (additive migration).
 const restaurantCols = db.prepare("PRAGMA table_info(restaurants)").all().map((r) => r.name);
 if (!restaurantCols.includes("is_active")) {
-  db.prepare("ALTER TABLE restaurants ADD COLUMN is_active INTEGER DEFAULT 1").run();
+  db.prepare("ALTER TABLE restaurants ADD COLUMN is_active  INTEGER DEFAULT 1").run();
+}if(!restaurantCols.includes("default_prep_minutes")){
+  db.prepare("ALTER TABLE restaurants ADD COLUMN default_prep_minutes INTEGER ").run()
 }
 db.prepare(`
   UPDATE restaurants
@@ -66,6 +68,7 @@ const orderAdds = [
   ["ready_at", "ALTER TABLE orders ADD COLUMN ready_at TEXT"],
   ["delivered_at", "ALTER TABLE orders ADD COLUMN delivered_at TEXT"],
   ["total_amount", "ALTER TABLE orders ADD COLUMN total_amount REAL"],
+  ["estimated_prep_minutes", "ALTER TABLE orders ADD COLUMN estimated_prep_minutes INTEGER"],
 ];
 for (const [name, ddl] of orderAdds) {
   if (!orderCols.includes(name)) {

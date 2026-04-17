@@ -122,7 +122,7 @@ function createPublicRouter({ db, telegramBotToken }) {
       const row = db
         .prepare(
           `
-          SELECT id, status, updated_at
+          SELECT id, status, updated_at, estimated_prep_minutes
           FROM orders
           WHERE id = ?
         `
@@ -138,6 +138,7 @@ function createPublicRouter({ db, telegramBotToken }) {
         order_id: row.id,
         status,
         updated_at: row.updated_at ?? null,
+        estimated_prep_minutes: row.estimated_prep_minutes ?? null,
       });
     } catch (err) {
       console.error("[public/orders/:id/status]", err);
@@ -196,7 +197,13 @@ function createPublicRouter({ db, telegramBotToken }) {
       }
 
       const restaurant = db
-        .prepare(`SELECT id, is_active, telegram_group_id FROM restaurants WHERE id = ?`)
+        .prepare(
+          `
+          SELECT id, is_active, telegram_group_id, default_prep_minutes
+          FROM restaurants
+          WHERE id = ?
+        `
+        )
         .get(restaurantId);
       if (!restaurant) {
         return res.status(404).json({ error: "restaurant not found" });
@@ -259,6 +266,9 @@ function createPublicRouter({ db, telegramBotToken }) {
       const phoneSnap = orderType === "dine_in" ? null : customerPhone || null;
       const addrSnap = orderType === "dine_in" ? null : customerAddress || null;
       const tableSnap = orderType === "dine_in" ? tableNumber : null;
+      const prepRaw = restaurant.default_prep_minutes;
+      const estimatedPrepMinutes =
+        prepRaw == null || prepRaw === "" ? null : Number.isFinite(Number(prepRaw)) ? Math.max(1, Math.floor(Number(prepRaw))) : null;
 
       const tx = db.transaction(() => {
         const info = db
@@ -267,9 +277,9 @@ function createPublicRouter({ db, telegramBotToken }) {
             INSERT INTO orders (
               restaurant_id, user_id, status, created_at, updated_at,
               customer_name_snapshot, customer_phone_snapshot, customer_address_snapshot,
-              customer_input_step, public_order_note, order_type, table_number
+              customer_input_step, public_order_note, order_type, table_number, estimated_prep_minutes
             )
-            VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+            VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
           `
           )
           .run(
@@ -282,7 +292,8 @@ function createPublicRouter({ db, telegramBotToken }) {
             addrSnap,
             note,
             orderType,
-            tableSnap
+            tableSnap,
+            estimatedPrepMinutes
           );
 
         orderId = Number(info.lastInsertRowid);
@@ -377,6 +388,7 @@ function createPublicRouter({ db, telegramBotToken }) {
         order_id: orderId,
         status: "confirmed",
         total_amount: totalAmount,
+        estimated_prep_minutes: estimatedPrepMinutes,
       });
     } catch (err) {
       console.error("[public/orders]", err);
