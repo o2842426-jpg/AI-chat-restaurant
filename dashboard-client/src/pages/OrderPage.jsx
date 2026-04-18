@@ -92,6 +92,18 @@ export default function OrderPage({ api = '/api' }) {
   const [estimatedPrepMinutes, setEstimatedPrepMinutes] = useState(null);
   const prevTrackingStatusRef = useRef(null);
 
+  const [serviceWaiterSent, setServiceWaiterSent] = useState(false);
+  const [serviceBillSent, setServiceBillSent] = useState(false);
+  const [serviceLoading, setServiceLoading] = useState(null);
+  const [serviceErr, setServiceErr] = useState(null);
+  const [serviceMsg, setServiceMsg] = useState(null);
+
+  const dineInTableForService = useMemo(() => {
+    if (qrDineIn.locked) return String(qrDineIn.table || '').trim();
+    if (orderType === 'dine_in') return String(tableNumber || '').trim();
+    return '';
+  }, [qrDineIn.locked, qrDineIn.table, orderType, tableNumber]);
+
   const loadMenu = useCallback(async () => {
     if (!Number.isFinite(rid) || rid <= 0) {
       setLoadError('رقم المطعم غير صالح');
@@ -299,6 +311,43 @@ export default function OrderPage({ api = '/api' }) {
     setTrackingError(null);
     setEstimatedPrepMinutes(null);
     prevTrackingStatusRef.current = null;
+    setServiceWaiterSent(false);
+    setServiceBillSent(false);
+    setServiceErr(null);
+    setServiceMsg(null);
+  };
+
+  const sendServiceRequest = async (requestType) => {
+    if (!dineInTableForService) return;
+    setServiceErr(null);
+    setServiceMsg(null);
+    setServiceLoading(requestType);
+    try {
+      const res = await fetch(`${api}/public/service-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: rid,
+          table_number: dineInTableForService,
+          request_type: requestType,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409) {
+        setServiceErr(data.message || 'يوجد طلب معلّق من نفس النوع لهذه الطاولة.');
+        return;
+      }
+      if (!res.ok) {
+        throw new Error(data.message || data.error || 'تعذر إرسال طلب الخدمة');
+      }
+      if (requestType === 'call_waiter') setServiceWaiterSent(true);
+      if (requestType === 'request_bill') setServiceBillSent(true);
+      setServiceMsg('تم إرسال الطلب إلى الطاقم.');
+    } catch (err) {
+      setServiceErr(err.message || 'تعذر الإرسال');
+    } finally {
+      setServiceLoading(null);
+    }
   };
 
   const showTracking = trackingOrderId != null;
@@ -333,7 +382,9 @@ export default function OrderPage({ api = '/api' }) {
         </div>
       )}
 
-      {menuData && !loadError && (showTracking ? (
+      {menuData && !loadError && (
+        <>
+          {showTracking ? (
         <section style={{ ...card, ...trackingCard }}>
           <h2 style={{ ...h2, marginBottom: '0.5rem' }}>متابعة الطلب</h2>
           <p style={{ margin: 0, color: '#6b7280', fontSize: '0.9rem' }}>
@@ -376,7 +427,7 @@ export default function OrderPage({ api = '/api' }) {
             إنشاء طلب جديد
           </button>
         </section>
-      ) : (
+          ) : (
         <form onSubmit={submit}>
           {qrDineIn.locked ? (
             <section style={{ ...card, ...qrTableBanner }}>
@@ -578,7 +629,56 @@ export default function OrderPage({ api = '/api' }) {
             {submitting ? 'جاري الإرسال…' : 'إرسال الطلب'}
           </button>
         </form>
-      ))}
+          )}
+
+          {dineInTableForService ? (
+            <section style={card}>
+              <h2 style={h2}>طلب خدمة</h2>
+              <p style={{ margin: '0 0 0.75rem', color: '#6b7280', fontSize: '0.9rem' }}>
+                للطاولة <strong>{dineInTableForService}</strong> — يصل الطلب إلى لوحة التحكم تحت «طلبات الخدمة».
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => sendServiceRequest('call_waiter')}
+                  disabled={Boolean(serviceLoading) || serviceWaiterSent}
+                  style={{
+                    ...typeBtnIdle,
+                    opacity: serviceLoading || serviceWaiterSent ? 0.65 : 1,
+                    cursor: serviceLoading || serviceWaiterSent ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {serviceLoading === 'call_waiter'
+                    ? 'جاري الإرسال…'
+                    : serviceWaiterSent
+                      ? 'تم طلب النادل'
+                      : 'استدعاء النادل'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => sendServiceRequest('request_bill')}
+                  disabled={Boolean(serviceLoading) || serviceBillSent}
+                  style={{
+                    ...typeBtnIdle,
+                    opacity: serviceLoading || serviceBillSent ? 0.65 : 1,
+                    cursor: serviceLoading || serviceBillSent ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {serviceLoading === 'request_bill'
+                    ? 'جاري الإرسال…'
+                    : serviceBillSent
+                      ? 'تم طلب الحساب'
+                      : 'طلب الحساب'}
+                </button>
+              </div>
+              {serviceMsg && (
+                <p style={{ margin: '0.75rem 0 0', color: '#065f46', fontSize: '0.9rem' }}>{serviceMsg}</p>
+              )}
+              {serviceErr && <div style={{ ...errorBox, marginTop: '0.75rem' }}>{serviceErr}</div>}
+            </section>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }

@@ -13,6 +13,7 @@ const { createAdminRouter } = require("./src/routes/admin.routes");
 const { createOrdersRouter } = require("./src/routes/orders.routes");
 const { createMenuRouter } = require("./src/routes/menu.routes");
 const { createStatsRouter } = require("./src/routes/stats.routes");
+const { createServiceRequestsRouter } = require("./src/routes/service-requests.routes");
 const { createPublicRouter } = require("./src/routes/public.routes");
 const { isTelegramKitchenDisabled } = require("./src/services/telegramKitchen");
 
@@ -70,6 +71,7 @@ app.use(authMiddleware(JWT_SECRET, db));
 
 app.use("/api/orders", createOrdersRouter({ db }));
 app.use("/api/menu", createMenuRouter({ db }));
+app.use("/api/service-requests", createServiceRequestsRouter({ db }));
 app.use(
   "/api/stats",
   createStatsRouter({

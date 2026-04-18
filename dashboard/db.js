@@ -150,7 +150,17 @@ db.prepare(`
   )
 `).run();
 
-
+// Table service (waiter call / bill request), separate from food orders.
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS service_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    restaurant_id INTEGER NOT NULL,
+    table_number TEXT NOT NULL,
+    request_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT
+  )
+`).run();
 
 const orderCols6 = db.prepare("PRAGMA table_info(orders)").all().map((r) => r.name);
 if (!orderCols6.includes("is_deleted")) {

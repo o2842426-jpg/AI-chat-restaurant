@@ -396,6 +396,72 @@ function createPublicRouter({ db, telegramBotToken }) {
     }
   });
 
+  // POST /api/public/service-requests (router mounted at /api/public)
+  router.post("/service-requests", (req, res) => {
+    try {
+      const { restaurant_id, table_number, request_type } = req.body || {};
+      const tableRaw = String(table_number ?? "").trim();
+      const typeRaw = String(request_type ?? "").trim();
+      const restaurantId = Number(restaurant_id);
+
+      if (!tableRaw) {
+        return res.status(400).json({ message: "table number required" });
+      }
+      if (!typeRaw) {
+        return res.status(400).json({ message: "request type required" });
+      }
+      if (!["call_waiter", "request_bill"].includes(typeRaw)) {
+        return res.status(400).json({ message: "request type is not available" });
+      }
+      if (!Number.isFinite(restaurantId) || restaurantId <= 0) {
+        return res.status(400).json({ message: "restaurant is not defined" });
+      }
+
+      const checking = db.prepare("SELECT * FROM restaurants WHERE id = ?").get(restaurantId);
+      if (!checking) {
+        return res.status(400).json({ message: "restaurant is not defined" });
+      }
+      if (Number(checking.is_active) !== 1) {
+        return res.status(403).json({ message: "it's not active" });
+      }
+
+      const pending = db
+        .prepare(
+          `SELECT id FROM service_requests
+           WHERE restaurant_id = ?
+             AND table_number = ?
+             AND request_type = ?
+             AND status = 'pending'
+           LIMIT 1`
+        )
+        .get(restaurantId, tableRaw, typeRaw);
+      if (pending) {
+        return res.status(409).json({ message: "duplicate pending request for this table and type" });
+      }
+
+      const createdAt = nowSqlite();
+      const insert = db.prepare(
+        `INSERT INTO service_requests (restaurant_id, table_number, request_type, status, created_at)
+         VALUES (?, ?, ?, 'pending', ?)`
+      );
+      const info = insert.run(restaurantId, tableRaw, typeRaw, createdAt);
+      const id = Number(info.lastInsertRowid);
+
+      return res.status(201).json({
+        ok: true,
+        id,
+        restaurant_id: restaurantId,
+        table_number: tableRaw,
+        request_type: typeRaw,
+        status: "pending",
+        created_at: createdAt,
+      });
+    } catch (err) {
+      console.error("[public/service-requests]", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 }
 

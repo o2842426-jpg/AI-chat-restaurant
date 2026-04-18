@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Landing from './pages/Landing';
 import OrderPage from './pages/OrderPage';
 import TableQrPage from './pages/TableQrPage';
+import ServiceRequests from './pages/ServiceRequests';
 import { clearAuthToken, getAuthRole, getAuthToken } from './lib/authToken';
 import { useMediaQuery } from './hooks/useMediaQuery';
 
@@ -83,6 +84,13 @@ function Layout({ children }) {
           </Link>
           <Link style={navLink(location.pathname === '/orders')} to="/orders" onClick={closeNav}>
             الطلبات
+          </Link>
+          <Link
+            style={navLink(location.pathname === '/service-requests')}
+            to="/service-requests"
+            onClick={closeNav}
+          >
+            طلبات الخدمة
           </Link>
           <Link style={navLink(location.pathname === '/menu')} to="/menu" onClick={closeNav}>
             المنيو
@@ -172,6 +180,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard api={API} />} />
                 <Route path="/orders" element={<Orders api={API} />} />
+                <Route path="/service-requests" element={<ServiceRequests api={API} />} />
                 <Route path="/menu" element={<Menu api={API} />} />
                 <Route path="/stats" element={<Stats api={API} />} />
                 <Route path="/qr-tables" element={<TableQrPage />} />
