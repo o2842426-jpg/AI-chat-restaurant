@@ -371,7 +371,22 @@ export default function OrderPage({ api = '/api' }) {
           هذا الطلب يُسجَّل لمطعم رقم <strong>{rid}</strong> — يجب أن يطابق رقم مطعمك في لوحة التحكم حتى يظهر الطلب هناك.
         </p>
       </header>
-
+      <p
+        style={{
+          margin: '0 0 1rem',
+          padding: '0.65rem 0.85rem',
+          background: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: 10,
+          color: '#1e3a5f',
+          fontSize: '0.92rem',
+          lineHeight: 1.55,
+        }}
+      >
+        إذا أردت استدعاء نادلًا أو طلب الحساب، تحتاج <strong>رقم الطاولة</strong>: إما من رابط الـ QR
+        (يُعرَف تلقائيًا)، أو اختر <strong>داخل المطعم</strong> واملأ الحقل أدناه، ثم استخدم قسم «طلب
+        خدمة».
+      </p>
       {loadingMenu && <p>جاري تحميل المنيو…</p>}
       {loadError && (
         <div style={errorBox}>
