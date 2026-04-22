@@ -55,6 +55,7 @@ export default function Dashboard({ api }) {
       const phone = String(o.customer_phone_snapshot ?? '').toLowerCase();
       const addr = String(o.customer_address_snapshot ?? '').toLowerCase();
       const tbl = String(o.table_number ?? '').toLowerCase();
+      const carId = String(o.car_identifier ?? '').toLowerCase();
       const otype = String(o.order_type ?? '').toLowerCase();
       return (
         idStr.includes(q) ||
@@ -64,6 +65,7 @@ export default function Dashboard({ api }) {
         phone.includes(q) ||
         addr.includes(q) ||
         tbl.includes(q) ||
+        carId.includes(q) ||
         otype.includes(q)
       );
     }).slice(0, 20);
@@ -272,6 +274,7 @@ export default function Dashboard({ api }) {
                 <th>المصدر</th>
                 <th>النوع</th>
                 <th>الطاولة</th>
+                <th>السيارة</th>
                 <th>الاسم</th>
                 <th>الهاتف</th>
                 <th>العنوان</th>
@@ -298,6 +301,7 @@ export default function Dashboard({ api }) {
                     </td>
                     <td style={{ ...dashCell, whiteSpace: 'nowrap' }}>{orderTypeLabelAr(o.order_type)}</td>
                     <td style={dashCell}>{snapshotLine(o.table_number)}</td>
+                    <td style={dashCell}>{snapshotLine(o.car_identifier)}</td>
                     <td style={dashCell}>{snapshotLine(o.customer_name_snapshot)}</td>
                     <td style={dashCell}>{snapshotLine(o.customer_phone_snapshot)}</td>
                     <td style={dashCell}>{snapshotLine(o.customer_address_snapshot)}</td>

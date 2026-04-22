@@ -27,13 +27,15 @@ function normalizePublicOrderType(raw) {
     .toLowerCase();
   if (s === "dine_in") return "dine_in";
   if (s === "delivery") return "delivery";
-  return null;
+  if (s === "car") return "car";
+    return null;
 }
 
 function buildKitchenText({
   orderId,
   orderType,
   tableNumber,
+  carIdentifier,
   name,
   phone,
   address,
@@ -45,6 +47,8 @@ function buildKitchenText({
   let metaLines;
   if (orderType === "dine_in") {
     metaLines = ["🍽️ داخل المطعم", `طاولة رقم: ${tableNumber || "?"}`, ""];
+  } else if (orderType === "car") {
+    metaLines = ["🚗 طلب سيارة", `تعريف السيارة: ${carIdentifier || "?"}`, ""];
   } else {
     metaLines = [
       "🚚 توصيل",
@@ -151,6 +155,8 @@ function createPublicRouter({ db, telegramBotToken }) {
       const body = req.body || {};
       const restaurantId = Number(body.restaurant_id);
       let orderType = normalizePublicOrderType(body.order_type);
+      const carRaw = body.car_identifier;
+      const carIdentifier = carRaw == null ? "" : (typeof carRaw === "string" ? carRaw.trim() : String(carRaw).trim());
       if (orderType == null) {
         orderType = "delivery";
       }
@@ -182,6 +188,10 @@ function createPublicRouter({ db, telegramBotToken }) {
       if (orderType === "dine_in") {
         if (!tableNumber) {
           return res.status(400).json({ error: "table_number is required for dine_in orders" });
+        }
+      } else if (orderType === "car") {
+        if (!carIdentifier) {
+          return res.status(400).json({ error: "car_identifier is required for car orders" });
         }
       } else {
         if (!customerName || !customerPhone || !customerAddress) {
@@ -266,6 +276,7 @@ function createPublicRouter({ db, telegramBotToken }) {
       const phoneSnap = orderType === "dine_in" ? null : customerPhone || null;
       const addrSnap = orderType === "dine_in" ? null : customerAddress || null;
       const tableSnap = orderType === "dine_in" ? tableNumber : null;
+      const carSnap = orderType === "car" ? carIdentifier : null;
       const prepRaw = restaurant.default_prep_minutes;
       const estimatedPrepMinutes =
         prepRaw == null || prepRaw === "" ? null : Number.isFinite(Number(prepRaw)) ? Math.max(1, Math.floor(Number(prepRaw))) : null;
@@ -275,11 +286,11 @@ function createPublicRouter({ db, telegramBotToken }) {
           .prepare(
             `
             INSERT INTO orders (
-              restaurant_id, user_id, status, created_at, updated_at,
+              restaurant_id, user_id, status, created_at, updated_at, car_identifier,
               customer_name_snapshot, customer_phone_snapshot, customer_address_snapshot,
               customer_input_step, public_order_note, order_type, table_number, estimated_prep_minutes
             )
-            VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
+            VALUES (?, ?, 'draft', ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?)
           `
           )
           .run(
@@ -287,6 +298,7 @@ function createPublicRouter({ db, telegramBotToken }) {
             WEB_ORDER_USER_ID,
             now,
             now,
+            carSnap,
             nameSnap,
             phoneSnap,
             addrSnap,
@@ -357,6 +369,7 @@ function createPublicRouter({ db, telegramBotToken }) {
         orderId,
         orderType,
         tableNumber: tableSnap,
+        carIdentifier: carSnap,
         name: customerName,
         phone: customerPhone,
         address: customerAddress,

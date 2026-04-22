@@ -111,6 +111,7 @@ export default function Orders({ api }) {
               <th>المصدر</th>
               <th>النوع</th>
               <th>الطاولة</th>
+              <th>السيارة</th>
               <th>التاريخ</th>
               <th>العناصر</th>
               <th>الاسم</th>
@@ -137,6 +138,7 @@ export default function Orders({ api }) {
                   {orderTypeLabelAr(order.order_type)}
                 </td>
                 <td style={{ fontSize: '0.85rem' }}>{snapshotLine(order.table_number)}</td>
+                <td style={{ fontSize: '0.85rem' }}>{snapshotLine(order.car_identifier)}</td>
                 <td>{order.created_at?.slice(0, 16)}</td>
                 <td>
                   {order.items

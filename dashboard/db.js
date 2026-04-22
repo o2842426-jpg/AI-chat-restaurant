@@ -69,6 +69,7 @@ const orderAdds = [
   ["delivered_at", "ALTER TABLE orders ADD COLUMN delivered_at TEXT"],
   ["total_amount", "ALTER TABLE orders ADD COLUMN total_amount REAL"],
   ["estimated_prep_minutes", "ALTER TABLE orders ADD COLUMN estimated_prep_minutes INTEGER"],
+  ["car_identifier", "ALTER TABLE orders ADD COLUMN car_identifier TEXT"],
 ];
 for (const [name, ddl] of orderAdds) {
   if (!orderCols.includes(name)) {

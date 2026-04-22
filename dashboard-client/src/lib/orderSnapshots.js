@@ -9,5 +9,6 @@ export function snapshotLine(value) {
 export function orderTypeLabelAr(orderType) {
   const t = String(orderType ?? '').trim().toLowerCase();
   if (t === 'dine_in') return 'داخل المطعم';
+  if (t === 'car') return 'سيارة';
   return 'توصيل';
 }

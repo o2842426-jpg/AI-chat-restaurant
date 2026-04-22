@@ -27,7 +27,7 @@ function createOrdersRouter({ db }) {
             `
       SELECT id, user_id, status, created_at, updated_at, total_amount, confirmed_at,
              customer_name_snapshot, customer_phone_snapshot, customer_address_snapshot,
-             public_order_note, order_type, table_number
+             public_order_note, order_type, table_number, car_identifier
       FROM orders
       WHERE restaurant_id = ? AND status = ? AND COALESCE(is_deleted, 0) = 0
       ORDER BY id DESC
@@ -41,7 +41,7 @@ function createOrdersRouter({ db }) {
             `
         SELECT id, user_id, status, created_at, updated_at, total_amount, confirmed_at,
                customer_name_snapshot, customer_phone_snapshot, customer_address_snapshot,
-               public_order_note, order_type, table_number
+               public_order_note, order_type, table_number, car_identifier
         FROM orders
         WHERE restaurant_id = ? AND LOWER(COALESCE(status,'')) != 'draft'
           AND COALESCE(is_deleted, 0) = 0
@@ -102,6 +102,7 @@ function createOrdersRouter({ db }) {
           public_order_note: plain.public_order_note ?? null,
           order_type: plain.order_type ?? null,
           table_number: plain.table_number ?? null,
+          car_identifier: plain.car_identifier ?? null,
           /** Helps staff see web vs Telegram at a glance. */
           order_source: fromWeb ? "web" : "telegram",
           items,

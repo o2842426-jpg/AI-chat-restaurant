@@ -63,7 +63,7 @@ function parseQrDineInParams(searchParams) {
   }
   return { locked: false, table: '' };
 }
-
+restartOrdering
 export default function OrderPage({ api = '/api' }) {
   const { restaurantId } = useParams();
   const [searchParams] = useSearchParams();
@@ -76,9 +76,10 @@ export default function OrderPage({ api = '/api' }) {
   const [loadingMenu, setLoadingMenu] = useState(true);
 
   const [quantities, setQuantities] = useState(() => ({}));
-  /** @type {'dine_in' | 'delivery'} */
+  /** @type {'dine_in' | 'delivery' | 'car'} */
   const [orderType, setOrderType] = useState('delivery');
   const [tableNumber, setTableNumber] = useState('');
+  const [carIdentifier, setCarIdentifier] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -250,10 +251,16 @@ export default function OrderPage({ api = '/api' }) {
 
     const submitOrderType = qrDineIn.locked ? 'dine_in' : orderType;
     const submitTable = qrDineIn.locked ? qrDineIn.table : tableNumber.trim();
+    const submitCarIdentifier = carIdentifier.trim();
 
     if (submitOrderType === 'dine_in') {
       if (!submitTable) {
         setSubmitError('يرجى إدخال رقم الطاولة');
+        return;
+      }
+    } else if (submitOrderType === 'car') {
+      if (!submitCarIdentifier) {
+        setSubmitError('يرجى إدخال تعريف السيارة');
         return;
       }
     } else {
@@ -273,6 +280,8 @@ export default function OrderPage({ api = '/api' }) {
       };
       if (submitOrderType === 'dine_in') {
         payload.table_number = submitTable;
+      } else if (submitOrderType === 'car') {
+        payload.car_identifier = submitCarIdentifier;
       } else {
         payload.customer_name = name.trim();
         payload.customer_phone = phone.trim();
@@ -315,6 +324,7 @@ export default function OrderPage({ api = '/api' }) {
     setServiceBillSent(false);
     setServiceErr(null);
     setServiceMsg(null);
+    setCarIdentifier('');
   };
 
   const sendServiceRequest = async (requestType) => {
@@ -349,7 +359,7 @@ export default function OrderPage({ api = '/api' }) {
       setServiceLoading(null);
     }
   };
-
+submit
   const showTracking = trackingOrderId != null;
 
   if (!Number.isFinite(rid) || rid <= 0) {
@@ -359,6 +369,59 @@ export default function OrderPage({ api = '/api' }) {
       </div>
     );
   }
+
+  // قبل return
+let customerFields = null;
+
+if (qrDineIn.locked) {
+  customerFields = null;
+} else if (orderType === 'dine_in') {
+  customerFields = ( <div style={field}>
+                <label htmlFor="table-num">رقم الطاولة</label>
+                <input
+                  id="table-num"
+                  value={tableNumber}
+                  onChange={(e) => setTableNumber(e.target.value)}
+                  placeholder="مثال: 12"
+                  inputMode="numeric"
+                  style={inputStyle}
+                />
+              </div>);
+} else if (orderType === 'car') {
+  customerFields = (<div style={field}>
+  <label htmlFor="car-identifier">تعريف السيارة</label>
+  <input
+    id="car-identifier"
+    value={carIdentifier}
+    onChange={(e) => setCarIdentifier(e.target.value)}
+    placeholder="رقم اللوحة أو وصف السيارة"
+    style={inputStyle}
+  />
+</div>);
+} else {
+  customerFields = (<>
+  <div style={field}>
+    <label htmlFor="cust-name">الاسم</label>
+    <input id="cust-name" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
+  </div>
+
+  <div style={field}>
+    <label htmlFor="cust-phone">الهاتف</label>
+    <input id="cust-phone" value={phone} onChange={(e) => setPhone(e.target.value)} style={inputStyle} />
+  </div>
+
+  <div style={field}>
+    <label htmlFor="cust-addr">العنوان</label>
+    <textarea
+      id="cust-addr"
+      value={address}
+      onChange={(e) => setAddress(e.target.value)}
+      rows={3}
+      style={{ ...inputStyle, resize: 'vertical' }}
+    />
+  </div>
+</>);
+}
 
   return (
     <div dir="rtl" lang="ar" style={pageWrap}>
@@ -480,6 +543,14 @@ export default function OrderPage({ api = '/api' }) {
                 >
                   🚚 توصيل
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderType('car')}
+                  style={orderType === 'car' ? typeBtnActive : typeBtnIdle}
+                >
+                   سيارة
+                </button>
+
               </div>
             </section>
           )}
@@ -572,51 +643,7 @@ export default function OrderPage({ api = '/api' }) {
           </section>
 
           <section style={card}>
-            <h2 style={h2}>بياناتك</h2>
-            {qrDineIn.locked ? null : orderType === 'dine_in' ? (
-              <div style={field}>
-                <label htmlFor="table-num">رقم الطاولة</label>
-                <input
-                  id="table-num"
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  placeholder="مثال: 12"
-                  inputMode="numeric"
-                  style={inputStyle}
-                />
-              </div>
-            ) : (
-              <>
-                <div style={field}>
-                  <label htmlFor="cust-name">الاسم</label>
-                  <input
-                    id="cust-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={field}>
-                  <label htmlFor="cust-phone">الهاتف</label>
-                  <input
-                    id="cust-phone"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    style={inputStyle}
-                  />
-                </div>
-                <div style={field}>
-                  <label htmlFor="cust-addr">العنوان</label>
-                  <textarea
-                    id="cust-addr"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    rows={3}
-                    style={{ ...inputStyle, resize: 'vertical' }}
-                  />
-                </div>
-              </>
-            )}
+            {customerFields}
             <div style={field}>
               <label htmlFor="cust-note">ملاحظة (اختياري)</label>
               <input id="cust-note" value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} />
