@@ -12,6 +12,7 @@ import TableQrPage from './pages/TableQrPage';
 import ServiceRequests from './pages/ServiceRequests';
 import { clearAuthToken, getAuthRole, getAuthToken } from './lib/authToken';
 import { useMediaQuery } from './hooks/useMediaQuery';
+import OrderPrintPage from './pages/OrderPrintPage';
 
 const API = '/api';
 const MOBILE_NAV_QUERY = '(max-width: 768px)';
@@ -179,7 +180,7 @@ function App() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Dashboard api={API} />} />
-                <Route path="/orders" element={<Orders api={API} />} />
+                <Route path="/orders/:id/print" element={<OrderPrintPage api={API} />} />
                 <Route path="/service-requests" element={<ServiceRequests api={API} />} />
                 <Route path="/menu" element={<Menu api={API} />} />
                 <Route path="/stats" element={<Stats api={API} />} />

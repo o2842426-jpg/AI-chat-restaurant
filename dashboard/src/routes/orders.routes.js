@@ -303,6 +303,77 @@ function createOrdersRouter({ db }) {
     }
   });
 
+  router.get("/:id" , (req , res)=>{
+    try{
+      const id = Number(req.params.id);
+      if(!Number.isFinite(id) || id <= 0){
+        return res.status(400).json({ error: "invalid order id" });
+      }
+
+      const order = db
+  .prepare(
+    `
+    SELECT
+      o.id,
+      o.status,
+      o.created_at,
+      o.order_type,
+      o.table_number,
+      o.car_identifier,
+      o.customer_address_snapshot,
+      o.customer_name_snapshot,
+      o.customer_phone_snapshot,
+      o.public_order_note,
+      r.name AS restaurant_name
+    FROM orders o
+    JOIN restaurants r ON r.id = o.restaurant_id
+    WHERE o.id = ? AND o.restaurant_id = ?
+    `
+  )
+  .get(id, req.restaurantId);
+      
+
+      if(!order){
+        return res.status(404).json({ error: "order not found" });
+    }
+
+    const items = db
+  .prepare(
+    `
+    SELECT
+      oi.id,
+      oi.quantity,
+      COALESCE(oi.item_name_snapshot, mi.name) AS name,
+      COALESCE(oi.unit_price_snapshot, mi.price) AS price
+    FROM order_items oi
+    LEFT JOIN menu_items mi ON mi.id = oi.menu_item_id
+    WHERE oi.order_id = ?
+    ORDER BY oi.id ASC
+    `
+  )
+  .all(id);
+
+  return res.json({
+    id: order.id,
+    status: order.status,
+    created_at: order.created_at,
+    order_type: order.order_type,
+    table_number: order.table_number ?? null,
+    car_identifier: order.car_identifier ?? null,
+    customer_name_snapshot: order.customer_name_snapshot ?? null,
+    customer_phone_snapshot: order.customer_phone_snapshot ?? null,
+    customer_address_snapshot: order.customer_address_snapshot ?? null,
+    public_order_note: order.public_order_note ?? null,
+    restaurant_name: order.restaurant_name ?? null,
+    items: Array.isArray(items) ? items : [],
+  });
+  
+  }catch(err){
+      console.log(err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  })
+
   return router;
 }
 

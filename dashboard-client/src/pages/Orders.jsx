@@ -120,7 +120,8 @@ export default function Orders({ api }) {
               <th>ملاحظة</th>
               <th>الحالة</th>
               <th>تغيير</th>
-            <th>حذف</th>
+              <th>طباعة</th>
+              <th>حذف</th>
             </tr>
           </thead>
           <tbody>
@@ -167,6 +168,26 @@ export default function Orders({ api }) {
                       </option>
                     ))}
                   </select>
+                </td>
+                <td>
+                  <a
+                    href={`/orders/${order.id}/print`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: '#111827',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 8,
+                      padding: '0.35rem 0.65rem',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      textDecoration: 'none',
+                      display: 'inline-block',
+                    }}
+                  >
+                    طباعة
+                  </a>
                 </td>
                 <td>
                   <button
