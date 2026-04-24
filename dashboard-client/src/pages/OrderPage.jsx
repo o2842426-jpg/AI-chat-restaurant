@@ -63,7 +63,6 @@ function parseQrDineInParams(searchParams) {
   }
   return { locked: false, table: '' };
 }
-restartOrdering
 export default function OrderPage({ api = '/api' }) {
   const { restaurantId } = useParams();
   const [searchParams] = useSearchParams();
