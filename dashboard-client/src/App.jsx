@@ -180,6 +180,7 @@ function App() {
             <Layout>
               <Routes>
                 <Route path="/" element={<Dashboard api={API} />} />
+                <Route path="/orders" element={<Orders api={API} />} />
                 <Route path="/orders/:id/print" element={<OrderPrintPage api={API} />} />
                 <Route path="/service-requests" element={<ServiceRequests api={API} />} />
                 <Route path="/menu" element={<Menu api={API} />} />
